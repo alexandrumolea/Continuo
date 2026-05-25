@@ -1,0 +1,58 @@
+import SwiftUI
+import FirebaseFirestore
+
+enum GoalType: String, Codable, CaseIterable {
+    case general    = "general"
+    case competence = "competence"
+
+    var label: String {
+        switch self {
+        case .general:    return "General"
+        case .competence: return "Competence"
+        }
+    }
+    var emoji: String {
+        switch self {
+        case .general:    return "🌱"
+        case .competence: return "🧠"
+        }
+    }
+    var color: Color {
+        switch self {
+        case .general:    return Color(hex: "4E7A52")
+        case .competence: return Color(hex: "4A5FA3")
+        }
+    }
+    var cardColor: Color {
+        switch self {
+        case .general:    return Color(hex: "ECF3ED")
+        case .competence: return Color(hex: "ECEEF8")
+        }
+    }
+}
+
+struct Goal: Identifiable, Codable {
+    @DocumentID var id: String?
+    var userId: String
+    var title: String
+    var type: GoalType
+    var progress: Double       // 0.0 – 1.0
+    var createdAt: Date
+    var successMeasure: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, userId, title, type, progress, createdAt, successMeasure
+    }
+}
+
+struct GoalReflection: Identifiable, Codable, Hashable {
+    @DocumentID var id: String?
+    var goalId: String
+    var userId: String
+    var text: String
+    var createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, goalId, userId, text, createdAt
+    }
+}
