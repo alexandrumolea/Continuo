@@ -11,6 +11,7 @@ struct SendAssignmentView: View {
     @State private var hasExpiry = false
     @State private var expiryDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @State private var gpReward = 20
+    @State private var selectedCompetencyId: String? = nil
     @State private var isSending = false
     @State private var didSend = false
     @Environment(\.dismiss) private var dismiss
@@ -168,6 +169,40 @@ struct SendAssignmentView: View {
                         }
                     }
 
+                    // Competency link (optional)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Link to competency (optional)")
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+
+                        FlowLayout(spacing: 8) {
+                            ForEach(Competency.catalog) { competency in
+                                let isSelected = selectedCompetencyId == competency.id
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        selectedCompetencyId = isSelected ? nil : competency.id
+                                    }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Text(competency.emoji).font(.system(size: 13))
+                                        Text(competency.name)
+                                            .font(ContinuoTheme.rounded(12, weight: isSelected ? .semibold : .regular))
+                                    }
+                                    .foregroundColor(isSelected ? competency.color : ContinuoTheme.textMedium)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        Capsule()
+                                            .fill(isSelected ? competency.color.opacity(0.12) : Color.white.opacity(0.6))
+                                            .overlay(Capsule()
+                                                .stroke(isSelected ? competency.color.opacity(0.5) : Color(hex: "EDE8E0"),
+                                                        lineWidth: 1.5))
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Send button
                     PrimaryButton(title: didSend ? "Sent! ✓" : "Send Assignment",
                                   isLoading: isSending) {
@@ -199,7 +234,8 @@ struct SendAssignmentView: View {
             expiresAt: hasExpiry ? expiryDate : nil,
             lastCompletedAt: nil,
             completionCount: 0,
-            createdAt: Date()
+            createdAt: Date(),
+            competencyId: selectedCompetencyId
         )
         do {
             try AssignmentService.shared.sendAssignment(assignment)

@@ -74,6 +74,15 @@ final class TrackingViewModel: ObservableObject {
         try? fs.addObjective(obj)
         newObjectiveTitle = ""
         showAddObjective = false
+
+        // Setting a new objective sharpens Agency (+5 pts)
+        Task {
+            try? await CompetencyService.shared.addPoints(
+                userId: userId,
+                competencyId: "agency",
+                points: 5
+            )
+        }
     }
 
     // MARK: - Skill progress (step = ±0.05)

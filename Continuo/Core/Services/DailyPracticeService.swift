@@ -109,5 +109,16 @@ final class DailyPracticeService {
         try batch.setData(from: event, forDocument: eventRef)
 
         batch.commit()
+
+        // Award competency points in background (fire-and-forget)
+        if let competencyId = practice.competencyId {
+            Task {
+                try? await CompetencyService.shared.addPoints(
+                    userId: userId,
+                    competencyId: competencyId,
+                    points: practice.gpReward
+                )
+            }
+        }
     }
 }

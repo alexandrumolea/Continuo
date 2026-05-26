@@ -10,6 +10,8 @@ struct GrowthView: View {
     @State private var finishedAssignments: [Assignment] = []
     @State private var assignmentListener: ListenerRegistration?
     @State private var assignmentToReactivate: Assignment? = nil
+    @State private var competencyScores: [CompetencyScore] = []
+    @State private var scoresListener: ListenerRegistration?
 
     // Coach-only state
     @State private var coachClients: [ContinuoUser] = []
@@ -30,6 +32,7 @@ struct GrowthView: View {
                             coachGrowthContent
                         } else {
                             tierCard
+                            competenciesSection
                             if !finishedAssignments.isEmpty {
                                 completedChallengesSection
                             }
@@ -57,11 +60,15 @@ struct GrowthView: View {
                     assignmentListener = AssignmentService.shared.finishedAssignmentsListener(clientId: uid) {
                         finishedAssignments = $0
                     }
+                    scoresListener = CompetencyService.shared.scoresListener(userId: uid) {
+                        competencyScores = $0
+                    }
                 }
             }
             .onDisappear {
                 assignmentListener?.remove()
                 clientsListener?.remove()
+                scoresListener?.remove()
             }
             .alert("Reactivate challenge?", isPresented: Binding(
                 get: { assignmentToReactivate != nil },
@@ -79,6 +86,74 @@ struct GrowthView: View {
                 Text("Provocarea va reveni activă și cei 50 GP bonus vor fi scăzuți.")
             }
         }
+    }
+
+    // MARK: - Competencies section (client)
+
+    private var competenciesSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Your Sharpened Competencies")
+                .font(ContinuoTheme.rounded(20, weight: .semibold))
+                .foregroundColor(ContinuoTheme.charcoal)
+
+            GlassCard {
+                VStack(spacing: 20) {
+                    // Radar chart
+                    CompetencyRadarChart(
+                        scores: radarData,
+                        size: 220
+                    )
+                    .frame(height: 220)
+
+                    Divider().opacity(0.3)
+
+                    // Individual bars
+                    VStack(spacing: 14) {
+                        ForEach(Competency.catalog) { competency in
+                            let pts = effectivePoints(for: competency.id)
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(competency.emoji).font(.system(size: 18))
+                                    Text(competency.name)
+                                        .font(ContinuoTheme.rounded(17, weight: .semibold))
+                                        .foregroundColor(ContinuoTheme.charcoal)
+                                    Spacer()
+                                    Text("\(pts) pts")
+                                        .font(ContinuoTheme.rounded(15, weight: .medium))
+                                        .foregroundColor(competency.color)
+                                }
+                                // Progress bar
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(competency.color.opacity(0.12))
+                                            .frame(height: 7)
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(competency.color)
+                                            .frame(width: geo.size.width * min(CGFloat(pts) / 100.0, 1.0),
+                                                   height: 7)
+                                            .animation(.spring(response: 0.5), value: pts)
+                                    }
+                                }
+                                .frame(height: 7)
+                                Text(competency.description)
+                                    .font(ContinuoTheme.rounded(13))
+                                    .foregroundColor(ContinuoTheme.textLight)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var radarData: [(Competency, Int)] {
+        Competency.catalog.map { ($0, effectivePoints(for: $0.id)) }
+    }
+
+    private func effectivePoints(for competencyId: String) -> Int {
+        competencyScores.first { $0.competencyId == competencyId }?.effectivePoints ?? 0
     }
 
     // MARK: - Coach dashboard
@@ -244,6 +319,79 @@ struct GrowthView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Radar chart
+
+struct CompetencyRadarChart: View {
+    let scores: [(Competency, Int)]   // (competency, effectivePoints)
+    let size: CGFloat
+    private let maxPoints: CGFloat = 100
+
+    var body: some View {
+        Canvas { ctx, canvasSize in
+            let cx = canvasSize.width  / 2
+            let cy = canvasSize.height / 2
+            let r  = min(cx, cy) - 20
+            let n  = scores.count
+            guard n > 0 else { return }
+
+            func point(index: Int, ratio: CGFloat) -> CGPoint {
+                let angle = (2 * .pi * CGFloat(index) / CGFloat(n)) - (.pi / 2)
+                return CGPoint(x: cx + cos(angle) * r * ratio,
+                               y: cy + sin(angle) * r * ratio)
+            }
+
+            // Grid rings
+            for level in stride(from: 0.25, through: 1.0, by: 0.25) {
+                var ring = Path()
+                for i in 0..<n {
+                    let pt = point(index: i, ratio: CGFloat(level))
+                    i == 0 ? ring.move(to: pt) : ring.addLine(to: pt)
+                }
+                ring.closeSubpath()
+                ctx.stroke(ring, with: .color(.gray.opacity(0.15)), lineWidth: 1)
+            }
+
+            // Axes
+            for i in 0..<n {
+                var axis = Path()
+                axis.move(to: CGPoint(x: cx, y: cy))
+                axis.addLine(to: point(index: i, ratio: 1.0))
+                ctx.stroke(axis, with: .color(.gray.opacity(0.15)), lineWidth: 1)
+            }
+
+            // Data polygon
+            var data = Path()
+            for (i, (_, pts)) in scores.enumerated() {
+                let ratio = min(CGFloat(pts) / maxPoints, 1.0)
+                let pt = point(index: i, ratio: max(ratio, 0.02))
+                i == 0 ? data.move(to: pt) : data.addLine(to: pt)
+            }
+            data.closeSubpath()
+            ctx.fill(data, with: .color(Color(hex: "C4536A").opacity(0.18)))
+            ctx.stroke(data, with: .color(Color(hex: "C4536A").opacity(0.7)), lineWidth: 2)
+        }
+        .frame(width: size, height: size)
+        .overlay(
+            // Axis labels
+            GeometryReader { geo in
+                let cx = geo.size.width / 2
+                let cy = geo.size.height / 2
+                let r  = min(cx, cy) - 20
+                let n  = scores.count
+                ForEach(Array(scores.enumerated()), id: \.offset) { i, pair in
+                    let angle = (2 * .pi * CGFloat(i) / CGFloat(n)) - (.pi / 2)
+                    let labelR = r + 14
+                    let x = cx + cos(angle) * labelR
+                    let y = cy + sin(angle) * labelR
+                    Text(pair.0.emoji)
+                        .font(.system(size: 18))
+                        .position(x: x, y: y)
+                }
+            }
+        )
     }
 }
 

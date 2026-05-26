@@ -58,17 +58,19 @@ struct HomeView: View {
                         ActivateSageDetailView(
                             practice: practice,
                             userId: auth.firebaseUser?.uid ?? "",
-                            onCompleted: { id in
-                                vm.completedPracticeIds.insert(id)
-                            }
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
+                    } else if practice.id == "releasing" {
+                        ReleasingDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
                     } else {
                         DailyPracticeDetailView(
                             practice: practice,
                             userId: auth.firebaseUser?.uid ?? "",
-                            onCompleted: { id in
-                                vm.completedPracticeIds.insert(id)
-                            }
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
                     }
                 }

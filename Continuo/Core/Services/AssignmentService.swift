@@ -14,6 +14,17 @@ final class AssignmentService {
     func deleteAssignment(_ assignment: Assignment) async throws {
         guard let id = assignment.id else { return }
         try await db.collection("assignments").document(id).delete()
+
+        // Deduct competency points earned through completions of this assignment
+        if let competencyId = assignment.competencyId, assignment.completionCount > 0 {
+            Task {
+                try? await CompetencyService.shared.addPoints(
+                    userId: assignment.clientId,
+                    competencyId: competencyId,
+                    points: -(assignment.gpReward * assignment.completionCount)
+                )
+            }
+        }
     }
 
     // MARK: - Coach: fetch clients (users where coachId == myUid)
@@ -125,6 +136,17 @@ final class AssignmentService {
         batch.updateData(["totalGP": FieldValue.increment(Int64(assignment.gpReward))], forDocument: userRef)
 
         batch.commit()
+
+        // Award competency points if the assignment is linked to one (fire-and-forget)
+        if let competencyId = assignment.competencyId {
+            Task {
+                try? await CompetencyService.shared.addPoints(
+                    userId: userId,
+                    competencyId: competencyId,
+                    points: assignment.gpReward
+                )
+            }
+        }
     }
 
     // MARK: - Client: reactivate a finished assignment (undo finish)

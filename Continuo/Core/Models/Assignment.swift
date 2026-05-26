@@ -95,6 +95,7 @@ struct Assignment: Identifiable, Codable {
     var lastCompletedAt: Date?
     var completionCount: Int
     var createdAt: Date
+    var competencyId: String?  // optional link to a Competency
 
     // MARK: - Computed (not persisted)
     var isDueNow: Bool {
@@ -121,7 +122,7 @@ struct Assignment: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, coachId, clientId, title, description, type, status,
-             recurrence, gpReward, expiresAt, lastCompletedAt, completionCount, createdAt
+             recurrence, gpReward, expiresAt, lastCompletedAt, completionCount, createdAt, competencyId
     }
 }
 
