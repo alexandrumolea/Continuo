@@ -158,9 +158,9 @@ struct CoachAssignmentRow: View {
                     HStack(alignment: .top, spacing: 12) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(assignment.type.color.opacity(0.12))
+                                .fill(ContinuoTheme.terracotta.opacity(0.10))
                                 .frame(width: 42, height: 42)
-                            Text(assignment.type.emoji).font(.title3)
+                            Text(assignment.emoji ?? "🎯").font(.title3)
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
@@ -194,14 +194,8 @@ struct CoachAssignmentRow: View {
                                     .multilineTextAlignment(.leading)
                             }
 
-                            // Meta row: recurrence · GP · expiry
+                            // Meta row: GP · expiry
                             HStack(spacing: 10) {
-                                if assignment.recurrence != .none {
-                                    Label(assignment.recurrence.label, systemImage: "repeat")
-                                        .font(ContinuoTheme.rounded(11))
-                                        .foregroundColor(ContinuoTheme.textMedium)
-                                }
-
                                 Label("\(assignment.gpReward) GP", systemImage: "star.fill")
                                     .font(ContinuoTheme.rounded(11))
                                     .foregroundColor(ContinuoTheme.sunOrange)

@@ -92,6 +92,63 @@ struct DailyPractice: Identifiable {
             ],
             gpReward: 5,
             competencyId: "adaptability_quotient"
+        ),
+        DailyPractice(
+            id: "positive_outlook",
+            title: "Positive Outlook",
+            emoji: "🌅",
+            category: "Confidence",
+            categoryColor: Color(hex: "C87B3E"),
+            cardColor: Color(hex: "FEF6EC"),
+            prompts: [
+                "What challenge am I looking forward to — today or in the near future?",
+                "How am I already prepared for it?",
+                "What are my strengths for this challenge?"
+            ],
+            gpReward: 5,
+            competencyId: "self_trust"
+        ),
+        DailyPractice(
+            id: "journaling",
+            title: "Daily Journal",
+            emoji: "📓",
+            category: "Journaling",
+            categoryColor: Color(hex: "7B5EA7"),
+            cardColor: Color(hex: "F3EFFE"),
+            prompts: [
+                "What am I feeling right now, without judgment?",
+                "What is weighing on my mind right now?",
+                "What keeps coming back to me lately?",
+                "What am I resisting right now?",
+                "What is happening inside me that I haven't named yet?",
+                "What do I keep avoiding, and what does that tell me?",
+                "What am I not allowing myself to feel?",
+                "What do I keep circling back to in my thoughts?",
+                "What is asking for my attention right now?",
+                "What truth am I tiptoeing around?",
+                "What do I really want right now, underneath everything else?",
+                "What do I need right now that I'm not giving myself?",
+                "What feels unfinished in my life right now?",
+                "What do I need to say that I haven't said yet?",
+                "What is taking up space in my mind that I haven't dealt with?",
+                "What do I notice when I slow down and actually listen to myself?",
+                "What am I carrying that isn't mine to carry?",
+                "What is my gut telling me that my head keeps overriding?",
+                "What do I wish someone understood about me?",
+                "What am I overthinking right now?",
+                "What parts of myself am I holding back, and why?",
+                "What am I learning about myself lately?",
+                "What story am I telling myself that might not be true?",
+                "What am I pretending not to know?",
+                "What am I afraid of right now?",
+                "Where in my body do I feel tension right now, and what is it about?",
+                "What would I write if I knew no one would ever read this?",
+                "What is the feeling I keep pushing away?",
+                "What have I been meaning to look at but keep postponing?",
+                "What do I need to hear from myself today?"
+            ],
+            gpReward: 5,
+            competencyId: "inner_harmony"
         )
     ]
 }

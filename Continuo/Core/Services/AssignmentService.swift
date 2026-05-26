@@ -230,6 +230,13 @@ final class AssignmentService {
             .document(id).updateData(["clientReply": text])
     }
 
+    // MARK: - Client: edit the main response of a completion
+    func updateResponse(completionId: String, newText: String) async throws {
+        try await db.collection("assignmentCompletions")
+            .document(completionId)
+            .updateData(["response": newText])
+    }
+
     // MARK: - Edit an existing message in the thread
     func editMessage(completion: AssignmentCompletion, messageId: String, newText: String) async throws {
         guard let id = completion.id else { return }

@@ -43,7 +43,7 @@ struct ReleasingDetailView: View {
                                 .foregroundColor(ContinuoTheme.sunYellow)
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 36)
 
                     // ── Question picker ──
                     VStack(alignment: .leading, spacing: 10) {

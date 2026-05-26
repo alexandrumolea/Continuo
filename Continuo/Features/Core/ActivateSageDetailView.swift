@@ -70,7 +70,7 @@ struct ActivateSageDetailView: View {
                             .font(ContinuoTheme.rounded(14))
                             .foregroundColor(accentColor.opacity(0.7))
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 36)
 
                     // ── Anchor picker ──
                     anchorSection

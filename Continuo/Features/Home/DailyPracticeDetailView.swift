@@ -48,7 +48,7 @@ struct DailyPracticeDetailView: View {
                                 .foregroundColor(ContinuoTheme.sunYellow)
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 36)
 
                     // Prompt + response pairs
                     ForEach(Array(practice.prompts.enumerated()), id: \.offset) { idx, prompt in

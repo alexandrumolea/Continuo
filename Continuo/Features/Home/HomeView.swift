@@ -66,6 +66,12 @@ struct HomeView: View {
                             userId: auth.firebaseUser?.uid ?? "",
                             onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
+                    } else if practice.id == "journaling" {
+                        JournalingDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
                     } else {
                         DailyPracticeDetailView(
                             practice: practice,
@@ -192,7 +198,9 @@ struct HomeView: View {
                             practice: practice,
                             isCompleted: vm.completedPracticeIds.contains(practice.id)
                         ) {
-                            if !vm.completedPracticeIds.contains(practice.id) {
+                            // activate_sage can be done unlimited times per day
+                            let isDone = vm.completedPracticeIds.contains(practice.id)
+                            if !isDone || practice.id == "activate_sage" {
                                 selectedPractice = practice
                             }
                         }
@@ -726,9 +734,9 @@ struct AssignmentFeedCard: View {
                 // Icon
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(assignment.type.color.opacity(0.12))
+                        .fill(ContinuoTheme.terracotta.opacity(0.10))
                         .frame(width: 48, height: 48)
-                    Text(assignment.type.emoji).font(.title2)
+                    Text(assignment.emoji ?? "🎯").font(.title2)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -736,19 +744,12 @@ struct AssignmentFeedCard: View {
                         .font(ContinuoTheme.rounded(15, weight: .semibold))
                         .foregroundColor(ContinuoTheme.charcoal)
                         .lineLimit(1)
-                    HStack(spacing: 6) {
-                        if assignment.isDueNow {
-                            Label("Due now", systemImage: "circle.fill")
-                                .font(ContinuoTheme.rounded(11, weight: .semibold))
-                                .foregroundColor(ContinuoTheme.olive)
-                        } else {
-                            Label("Completed today", systemImage: "checkmark.circle.fill")
-                                .font(ContinuoTheme.rounded(11))
-                                .foregroundColor(ContinuoTheme.textMedium)
-                        }
-                        Text("·")
-                            .foregroundColor(ContinuoTheme.textLight)
-                        Text(assignment.recurrence.label)
+                    if assignment.isDueNow {
+                        Label("Due now", systemImage: "circle.fill")
+                            .font(ContinuoTheme.rounded(11, weight: .semibold))
+                            .foregroundColor(ContinuoTheme.olive)
+                    } else {
+                        Label("Completed", systemImage: "checkmark.circle.fill")
                             .font(ContinuoTheme.rounded(11))
                             .foregroundColor(ContinuoTheme.textMedium)
                     }

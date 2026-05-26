@@ -196,9 +196,9 @@ struct GrowthView: View {
                     HStack(spacing: 14) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(assignment.type.color.opacity(0.12))
+                                .fill(ContinuoTheme.terracotta.opacity(0.10))
                                 .frame(width: 48, height: 48)
-                            Text(assignment.type.emoji)
+                            Text(assignment.emoji ?? "🎯")
                                 .font(.title2)
                         }
 

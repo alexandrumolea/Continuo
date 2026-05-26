@@ -14,9 +14,12 @@ struct AssignmentDetailView: View {
     @State private var replyDraft = ""
     @State private var editingMsg: ThreadMessage? = nil
     @State private var editMsgDraft = ""
+    @State private var editingResponseId: String? = nil
+    @State private var editResponseDraft = ""
     @FocusState private var textFocused: Bool
     @FocusState private var replyFocused: Bool
     @FocusState private var editMsgFocused: Bool
+    @FocusState private var editResponseFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     private let service = AssignmentService.shared
@@ -44,7 +47,7 @@ struct AssignmentDetailView: View {
                 .padding(.bottom, 48)
             }
         }
-        .navigationTitle(assignment.type.label)
+        .navigationTitle("Challenge")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Mark as Finished?", isPresented: $showFinishAlert) {
             Button("Finish", role: .destructive) { markFinished() }
@@ -61,22 +64,16 @@ struct AssignmentDetailView: View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    Text(assignment.type.emoji)
+                    Text(assignment.emoji ?? "🎯")
                         .font(.system(size: 32))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(assignment.title)
                             .font(ContinuoTheme.rounded(18, weight: .bold))
                             .foregroundColor(ContinuoTheme.charcoal)
-                        HStack(spacing: 8) {
-                            Label(assignment.recurrence.label, systemImage: assignment.recurrence.icon)
-                                .font(ContinuoTheme.rounded(11, weight: .medium))
-                                .foregroundColor(assignment.type.color)
-                            if assignment.completionCount > 0 {
-                                Text("·")
-                                Text("\(assignment.completionCount)× completed")
-                                    .font(ContinuoTheme.rounded(11))
-                                    .foregroundColor(ContinuoTheme.textMedium)
-                            }
+                        if assignment.completionCount > 0 {
+                            Text("\(assignment.completionCount)× completed")
+                                .font(ContinuoTheme.rounded(11))
+                                .foregroundColor(ContinuoTheme.textMedium)
                         }
                     }
                 }
@@ -110,37 +107,35 @@ struct AssignmentDetailView: View {
     private var responseCard: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text(assignment.isDueNow || completions.isEmpty ? "Your response" : "Completed today ✓")
+                Text("Your response")
                     .font(ContinuoTheme.rounded(15, weight: .semibold))
                     .foregroundColor(ContinuoTheme.charcoal)
 
-                if assignment.type.needsTextResponse {
-                    TextEditor(text: $responseText)
-                        .font(ContinuoTheme.rounded(14))
-                        .foregroundColor(ContinuoTheme.charcoal)
-                        .frame(minHeight: 120)
-                        .focused($textFocused)
-                        .scrollContentBackground(.hidden)
-                        .background(Color(hex: "F5F2EC").opacity(0.6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            Group {
-                                if responseText.isEmpty {
-                                    Text("Write your reflection here…")
-                                        .font(ContinuoTheme.rounded(14))
-                                        .foregroundColor(ContinuoTheme.textLight)
-                                        .padding(8)
-                                        .allowsHitTesting(false)
-                                }
-                            }, alignment: .topLeading
-                        )
-                }
+                TextEditor(text: $responseText)
+                    .font(ContinuoTheme.rounded(14))
+                    .foregroundColor(ContinuoTheme.charcoal)
+                    .frame(minHeight: 120)
+                    .focused($textFocused)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(hex: "F5F2EC").opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        Group {
+                            if responseText.isEmpty {
+                                Text("Write your reflection here…")
+                                    .font(ContinuoTheme.rounded(14))
+                                    .foregroundColor(ContinuoTheme.textLight)
+                                    .padding(8)
+                                    .allowsHitTesting(false)
+                            }
+                        }, alignment: .topLeading
+                    )
 
                 PrimaryButton(title: isSubmitting ? "Saving…" : "Mark as Complete",
                               isLoading: isSubmitting) {
                     submitCompletion()
                 }
-                .disabled(assignment.type.needsTextResponse && responseText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(responseText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }
@@ -184,16 +179,70 @@ struct AssignmentDetailView: View {
                         .foregroundColor(ContinuoTheme.textLight)
                 }
 
-                // ── Client original response ──
+                // ── Client original response (editable) ──
                 if !completion.response.isEmpty {
-                    Text(completion.response)
-                        .font(ContinuoTheme.rounded(13))
-                        .foregroundColor(ContinuoTheme.charcoal)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(hex: "F5F2EC").opacity(0.8)))
+                    let isEditingResponse = editingResponseId == completion.id
+                    VStack(alignment: .leading, spacing: 6) {
+                        if isEditingResponse {
+                            TextField("Edit your response…", text: $editResponseDraft, axis: .vertical)
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.charcoal)
+                                .focused($editResponseFocused)
+                                .lineLimit(3...10)
+                                .padding(10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.white.opacity(0.9))
+                                        .overlay(RoundedRectangle(cornerRadius: 10)
+                                            .stroke(ContinuoTheme.olive.opacity(0.4), lineWidth: 1.5))
+                                )
+                            HStack(spacing: 12) {
+                                Button {
+                                    let text = editResponseDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !text.isEmpty, let id = completion.id else { return }
+                                    Task { try? await AssignmentService.shared.updateResponse(completionId: id, newText: text) }
+                                    editingResponseId = nil
+                                    editResponseFocused = false
+                                } label: {
+                                    Text("Save")
+                                        .font(ContinuoTheme.rounded(12, weight: .semibold))
+                                        .foregroundColor(ContinuoTheme.olive)
+                                }
+                                .disabled(editResponseDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                                Button {
+                                    editingResponseId = nil
+                                    editResponseFocused = false
+                                } label: {
+                                    Text("Cancel")
+                                        .font(ContinuoTheme.rounded(12))
+                                        .foregroundColor(ContinuoTheme.textLight)
+                                }
+                            }
+                            .padding(.leading, 4)
+                        } else {
+                            HStack(alignment: .top, spacing: 6) {
+                                Text(completion.response.isEmpty ? "No response" : completion.response)
+                                    .font(ContinuoTheme.rounded(13))
+                                    .foregroundColor(completion.response.isEmpty ? ContinuoTheme.textLight : ContinuoTheme.charcoal)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Button {
+                                    editResponseDraft = completion.response
+                                    editingResponseId = completion.id
+                                    editResponseFocused = true
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.caption)
+                                        .foregroundColor(ContinuoTheme.textLight)
+                                        .padding(6)
+                                }
+                            }
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(hex: "F5F2EC").opacity(0.8)))
+                        }
+                    }
                 }
 
                 // ── Conversation thread ──

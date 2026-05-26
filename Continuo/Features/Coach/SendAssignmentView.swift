@@ -6,9 +6,15 @@ struct SendAssignmentView: View {
 
     @State private var title = ""
     @State private var description = ""
-    @State private var selectedType: AssignmentType = .reflection
-    @State private var selectedRecurrence: RecurrenceType = .none
+    @State private var selectedEmoji: String = "🎯"
     @State private var hasExpiry = false
+
+    private let emojiOptions = [
+        "🎯", "💪", "📖", "✍️", "🧘", "🏃",
+        "💭", "🌱", "🔥", "⭐", "💡", "🌊",
+        "🤝", "🧠", "❤️", "🎨", "🌿", "🔑",
+        "🏆", "🌟", "🦁", "🗺️", "🌙", "✨"
+    ]
     @State private var expiryDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @State private var gpReward = 20
     @State private var selectedCompetencyId: String? = nil
@@ -36,26 +42,28 @@ struct SendAssignmentView: View {
                     }
                     .padding(.top, 24)
 
-                    // Type picker
+                    // Emoji picker
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Type").font(ContinuoTheme.rounded(13)).foregroundColor(ContinuoTheme.textMedium)
-                        LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 10) {
-                            ForEach(AssignmentType.allCases, id: \.self) { type in
+                        Text("Emoji").font(ContinuoTheme.rounded(13)).foregroundColor(ContinuoTheme.textMedium)
+                        LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6), spacing: 10) {
+                            ForEach(emojiOptions, id: \.self) { emoji in
                                 Button {
-                                    withAnimation(.easeInOut(duration: 0.15)) { selectedType = type }
+                                    withAnimation(.easeInOut(duration: 0.1)) { selectedEmoji = emoji }
                                 } label: {
-                                    HStack(spacing: 8) {
-                                        Text(type.emoji)
-                                        Text(type.label)
-                                            .font(ContinuoTheme.rounded(13, weight: .medium))
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 11)
-                                    .background(RoundedRectangle(cornerRadius: 12)
-                                        .fill(selectedType == type ? type.color.opacity(0.15) : Color.clear))
-                                    .overlay(RoundedRectangle(cornerRadius: 12)
-                                        .stroke(selectedType == type ? type.color : ContinuoTheme.textLight.opacity(0.5), lineWidth: 1.5))
-                                    .foregroundColor(selectedType == type ? type.color : ContinuoTheme.textMedium)
+                                    Text(emoji)
+                                        .font(.system(size: 26))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 48)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(selectedEmoji == emoji
+                                                      ? ContinuoTheme.terracotta.opacity(0.15)
+                                                      : Color.white.opacity(0.6))
+                                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(selectedEmoji == emoji
+                                                            ? ContinuoTheme.terracotta.opacity(0.4)
+                                                            : Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                        )
                                 }
                             }
                         }
@@ -102,34 +110,6 @@ struct SendAssignmentView: View {
                                     }
                                 }, alignment: .topLeading
                             )
-                    }
-
-                    // Recurrence
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Frequency").font(ContinuoTheme.rounded(13)).foregroundColor(ContinuoTheme.textMedium)
-                        HStack(spacing: 8) {
-                            ForEach(RecurrenceType.allCases, id: \.self) { rec in
-                                Button {
-                                    withAnimation { selectedRecurrence = rec }
-                                } label: {
-                                    Text(rec.label)
-                                        .font(ContinuoTheme.rounded(12, weight: .medium))
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 9)
-                                        .background(RoundedRectangle(cornerRadius: 10)
-                                            .fill(selectedRecurrence == rec
-                                                  ? ContinuoTheme.sunYellow.opacity(0.2)
-                                                  : Color.clear))
-                                        .overlay(RoundedRectangle(cornerRadius: 10)
-                                            .stroke(selectedRecurrence == rec
-                                                    ? ContinuoTheme.sunYellow
-                                                    : ContinuoTheme.textLight.opacity(0.4), lineWidth: 1.5))
-                                        .foregroundColor(selectedRecurrence == rec
-                                                         ? ContinuoTheme.terracotta
-                                                         : ContinuoTheme.textMedium)
-                                }
-                            }
-                        }
                     }
 
                     // GP Reward
@@ -227,9 +207,8 @@ struct SendAssignmentView: View {
             clientId: clientId,
             title: title.trimmingCharacters(in: .whitespaces),
             description: description.trimmingCharacters(in: .whitespaces),
-            type: selectedType,
+            emoji: selectedEmoji,
             status: .active,
-            recurrence: selectedRecurrence,
             gpReward: gpReward,
             expiresAt: hasExpiry ? expiryDate : nil,
             lastCompletedAt: nil,

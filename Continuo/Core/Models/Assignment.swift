@@ -16,65 +16,6 @@ struct ThreadMessage: Identifiable, Codable {
     }
 }
 
-enum AssignmentType: String, Codable, CaseIterable {
-    case reflection = "reflection"
-    case task       = "task"
-    case reading    = "reading"
-    case exercise   = "exercise"
-
-    var label: String {
-        switch self {
-        case .reflection: return "Reflection"
-        case .task:       return "Task"
-        case .reading:    return "Reading"
-        case .exercise:   return "Exercise"
-        }
-    }
-    var emoji: String {
-        switch self {
-        case .reflection: return "🪞"
-        case .task:       return "✅"
-        case .reading:    return "📚"
-        case .exercise:   return "🧘"
-        }
-    }
-    var color: Color {
-        switch self {
-        case .reflection: return Color(hex: "7A3F38")
-        case .task:       return Color(hex: "6E7E3F")
-        case .reading:    return Color(hex: "5C6FBE")
-        case .exercise:   return Color(hex: "C07B2A")
-        }
-    }
-    var needsTextResponse: Bool {
-        self == .reflection
-    }
-}
-
-enum RecurrenceType: String, Codable, CaseIterable {
-    case none    = "none"
-    case daily   = "daily"
-    case weekly  = "weekly"
-    case monthly = "monthly"
-
-    var label: String {
-        switch self {
-        case .none:    return "One-time"
-        case .daily:   return "Daily"
-        case .weekly:  return "Weekly"
-        case .monthly: return "Monthly"
-        }
-    }
-    var icon: String {
-        switch self {
-        case .none:    return "1.circle"
-        case .daily:   return "sun.max"
-        case .weekly:  return "calendar.badge.clock"
-        case .monthly: return "moon.stars"
-        }
-    }
-}
-
 enum AssignmentStatus: String, Codable {
     case active   = "active"
     case finished = "finished"
@@ -87,9 +28,8 @@ struct Assignment: Identifiable, Codable {
     var clientId: String
     var title: String
     var description: String
-    var type: AssignmentType
+    var emoji: String?          // nil in legacy documents → falls back to "🎯"
     var status: AssignmentStatus
-    var recurrence: RecurrenceType
     var gpReward: Int
     var expiresAt: Date?
     var lastCompletedAt: Date?
@@ -100,19 +40,7 @@ struct Assignment: Identifiable, Codable {
     // MARK: - Computed (not persisted)
     var isDueNow: Bool {
         guard status == .active else { return false }
-        guard let last = lastCompletedAt else { return true }
-        switch recurrence {
-        case .none:
-            return false
-        case .daily:
-            return !Calendar.current.isDateInToday(last)
-        case .weekly:
-            let days = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-            return days >= 7
-        case .monthly:
-            let days = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-            return days >= 30
-        }
+        return lastCompletedAt == nil
     }
 
     var isExpired: Bool {
@@ -121,8 +49,8 @@ struct Assignment: Identifiable, Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, coachId, clientId, title, description, type, status,
-             recurrence, gpReward, expiresAt, lastCompletedAt, completionCount, createdAt, competencyId
+        case id, coachId, clientId, title, description, emoji, status,
+             gpReward, expiresAt, lastCompletedAt, completionCount, createdAt, competencyId
     }
 }
 
