@@ -40,9 +40,10 @@ struct Goal: Identifiable, Codable {
     var progress: Double       // 0.0 – 1.0
     var createdAt: Date
     var successMeasure: String? = nil
+    var order: Int = 0         // display order in In Focus
 
     enum CodingKeys: String, CodingKey {
-        case id, userId, title, type, emoji, progress, createdAt, successMeasure
+        case id, userId, title, type, emoji, progress, createdAt, successMeasure, order
     }
 }
 

@@ -62,10 +62,17 @@ struct AuthView: View {
 
     // MARK: - Logo
     private var logoSection: some View {
-        VStack(spacing: 10) {
-            Text("∞")
-                .font(.system(size: 64))
-                .foregroundColor(ContinuoTheme.sunOrange)
+        VStack(spacing: 14) {
+            Image("ContinuoOwl")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                // Layered shadows for 3D depth
+                .shadow(color: Color(hex: "7A5230").opacity(0.28), radius: 24, x: -4, y: 14)
+                .shadow(color: Color(hex: "4E7040").opacity(0.15), radius: 8,  x:  3, y: 5)
+                .shadow(color: Color.black.opacity(0.06),           radius: 3,  x:  0, y: 2)
+                // multiply removes white background without a transparent PNG
+                .blendMode(.multiply)
             Text("Continuo")
                 .font(ContinuoTheme.rounded(38, weight: .bold))
                 .foregroundColor(ContinuoTheme.charcoal)
@@ -73,7 +80,7 @@ struct AuthView: View {
                 .font(ContinuoTheme.rounded(15))
                 .foregroundColor(ContinuoTheme.textMedium)
         }
-        .padding(.top, 72)
+        .padding(.top, 64)
     }
 
     // MARK: - Mode toggle
@@ -81,6 +88,7 @@ struct AuthView: View {
         HStack(spacing: 0) {
             ForEach([("Sign In", true), ("Create Account", false)], id: \.0) { label, isLogin in
                 Button {
+                    HapticFeedback.selection()
                     withAnimation(.easeInOut(duration: 0.2)) { vm.isLoginMode = isLogin }
                 } label: {
                     Text(label)
@@ -95,16 +103,20 @@ struct AuthView: View {
                         )
                         .foregroundColor(vm.isLoginMode == isLogin
                                          ? .white
-                                         : ContinuoTheme.textMedium)
+                                         : ContinuoTheme.charcoal.opacity(0.5))
                 }
             }
         }
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 15)
-                .fill(.ultraThinMaterial)
-                .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.white.opacity(0.7), lineWidth: 1))
+                .fill(Color.white.opacity(0.9))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color(hex: "E8E0D6"), lineWidth: 1.5)
+                )
         )
+        .shadow(color: ContinuoTheme.charcoal.opacity(0.05), radius: 6, y: 2)
         .padding(.horizontal, 24)
     }
 
@@ -172,30 +184,41 @@ struct AuthField: View {
     var keyboard: UIKeyboardType = .default
     var isSecure: Bool = false
 
+    private var promptText: Text {
+        Text(placeholder)
+            .foregroundColor(ContinuoTheme.textMedium)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.subheadline)
-                .foregroundColor(ContinuoTheme.textLight)
+                .foregroundColor(ContinuoTheme.terracotta.opacity(0.7))
                 .frame(width: 20)
             Group {
                 if isSecure {
-                    SecureField(placeholder, text: $text)
+                    SecureField("", text: $text, prompt: promptText)
                 } else {
-                    TextField(placeholder, text: $text)
+                    TextField("", text: $text, prompt: promptText)
                         .keyboardType(keyboard)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                 }
             }
             .font(ContinuoTheme.rounded(15))
+            .foregroundColor(ContinuoTheme.charcoal)
+            .tint(ContinuoTheme.terracotta)
         }
         .padding(15)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.7), lineWidth: 1))
+                .fill(Color.white.opacity(0.9))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color(hex: "E8E0D6"), lineWidth: 1.5)
+                )
         )
+        .shadow(color: ContinuoTheme.charcoal.opacity(0.05), radius: 6, y: 2)
     }
 }
 

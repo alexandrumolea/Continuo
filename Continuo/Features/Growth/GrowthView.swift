@@ -27,7 +27,7 @@ struct GrowthView: View {
                 BackgroundOrbs()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 40) {
                         if isCoach {
                             coachGrowthContent
                         } else {
@@ -40,16 +40,22 @@ struct GrowthView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                    .padding(.top, 48)
                     .padding(.bottom, 40)
                 }
             }
-            .navigationTitle("Growth")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
             .onChange(of: totalGP) { _, newGP in
                 if !isCoach { vm.loadBadges(totalGP: newGP) }
             }
             .onAppear {
+                // Scroll carousel to current tier immediately
+                let idx = vm.currentTierIndex(gp: totalGP)
+                scrolledTierID = vm.tiers[idx].id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    carouselReady = true
+                }
+
                 guard let uid = auth.firebaseUser?.uid else { return }
                 if isCoach {
                     clientsListener = AssignmentService.shared.clientsListener(coachId: uid) {
@@ -240,69 +246,129 @@ struct GrowthView: View {
         }
     }
 
-    // MARK: - Tier card
+    // MARK: - Level carousel
+    @State private var scrolledTierID: GrowthTier.ID? = nil
+    @State private var carouselReady = false
+
+    // The tier currently centred in the carousel
+    private var visibleTier: GrowthTier {
+        vm.tiers.first(where: { $0.id == scrolledTierID }) ?? vm.currentTier(gp: totalGP)
+    }
+
     private var tierCard: some View {
-        let tier = vm.currentTier(gp: totalGP)
-        let progress = vm.tierProgress(gp: totalGP)
-        let toNext = vm.gpToNextTier(gp: totalGP)
+        let currentIdx = vm.currentTierIndex(gp: totalGP)
 
-        return GlassCard {
-            VStack(spacing: 16) {
-                // Tier info
-                HStack(spacing: 16) {
-                    Text(tier.emoji)
-                        .font(.system(size: 52))
-                        .shadow(color: ContinuoTheme.sunOrange.opacity(0.3), radius: 10)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(tier.name)
-                            .font(ContinuoTheme.rounded(22, weight: .bold))
-                            .foregroundColor(ContinuoTheme.charcoal)
-                        Text("\(totalGP) Growth Points")
-                            .font(ContinuoTheme.rounded(14))
-                            .foregroundColor(ContinuoTheme.textMedium)
-                    }
-                    Spacer()
-                }
+        return VStack(alignment: .leading, spacing: 0) {
 
-                // Progress bar
-                VStack(alignment: .leading, spacing: 6) {
-                    ContinuoProgressBar(progress: progress, color: ContinuoTheme.sunOrange, height: 8)
-                    if toNext > 0 {
-                        Text("\(toNext) GP to next tier")
-                            .font(ContinuoTheme.rounded(12))
-                            .foregroundColor(ContinuoTheme.textMedium)
-                    } else {
-                        Text("Maximum tier reached ✨")
-                            .font(ContinuoTheme.rounded(12))
-                            .foregroundColor(ContinuoTheme.sunOrange)
-                    }
-                }
-
-                Divider().opacity(0.3)
-
-                // Tier path
-                HStack(spacing: 0) {
-                    ForEach(Array(vm.tiers.enumerated()), id: \.element.id) { idx, t in
-                        VStack(spacing: 4) {
-                            Text(t.emoji)
-                                .font(.title3)
-                                .opacity(totalGP >= t.minGP ? 1.0 : 0.28)
-                            Text(t.name)
-                                .font(ContinuoTheme.rounded(9))
-                                .foregroundColor(totalGP >= t.minGP
-                                                 ? ContinuoTheme.charcoal.opacity(0.7)
-                                                 : ContinuoTheme.charcoal.opacity(0.25))
-                        }
-                        .frame(maxWidth: .infinity)
-                        if idx < vm.tiers.count - 1 {
-                            Rectangle()
-                                .fill(ContinuoTheme.charcoal.opacity(0.12))
-                                .frame(height: 1)
-                                .padding(.bottom, 16)
-                        }
-                    }
+            // ── Header ────────────────────────────────────────
+            HStack {
+                Text("Your Path to Wisdom")
+                    .font(ContinuoTheme.rounded(20, weight: .bold))
+                    .foregroundColor(ContinuoTheme.charcoal)
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(ContinuoTheme.sunYellow)
+                    Text("\(totalGP) GP")
+                        .font(ContinuoTheme.rounded(14, weight: .semibold))
+                        .foregroundColor(ContinuoTheme.sunYellow)
                 }
             }
+            .padding(.bottom, 28)
+
+            // ── Carousel (compact cards) ───────────────────────
+            GeometryReader { proxy in
+                let cardWidth = proxy.size.width * 0.62
+                let hPad     = (proxy.size.width - cardWidth) / 2
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(vm.tiers.enumerated()), id: \.element.id) { idx, tier in
+                            LevelCarouselCard(
+                                tier: tier,
+                                index: idx,
+                                currentIndex: currentIdx,
+                                totalGP: totalGP,
+                                progress: idx == currentIdx ? vm.tierProgress(gp: totalGP) : 0,
+                                gpToNext: idx == currentIdx ? vm.gpToNextTier(gp: totalGP) : 0
+                            )
+                            .frame(width: cardWidth)
+                            .id(tier.id)
+                            .scrollTransition(.animated(.spring(response: 0.35, dampingFraction: 0.80))) { content, phase in
+                                content
+                                    .scaleEffect(phase.isIdentity ? 1.0 : 0.84)
+                                    .opacity(phase.isIdentity ? 1.0 : 0.55)
+                            }
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, hPad)
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $scrolledTierID, anchor: .center)
+                .scrollClipDisabled()
+                .onChange(of: scrolledTierID) { _, _ in
+                    guard carouselReady else { return }
+                    HapticFeedback.selection()
+                }
+            }
+            .frame(height: 230)
+
+            // ── Description panel (updates with scroll) ───────
+            let shown = visibleTier
+            let shownIdx = vm.tiers.firstIndex(where: { $0.id == shown.id }) ?? 0
+            let shownState: Int = shownIdx < currentIdx ? -1 : (shownIdx == currentIdx ? 0 : 1)
+
+            VStack(spacing: 8) {
+                // Level pill + name
+                HStack(spacing: 8) {
+                    Text("Level \(shownIdx + 1)")
+                        .font(ContinuoTheme.rounded(11, weight: .semibold))
+                        .foregroundColor(shown.color.opacity(shownState == 1 ? 0.4 : 0.9))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(shown.color.opacity(shownState == 1 ? 0.06 : 0.13)))
+
+                    Text(shown.name)
+                        .font(ContinuoTheme.rounded(20, weight: .bold))
+                        .foregroundColor(shownState == 1
+                                         ? ContinuoTheme.charcoal.opacity(0.3)
+                                         : ContinuoTheme.charcoal)
+
+                    if shownState == -1 {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(ContinuoTheme.olive)
+                    } else if shownState == 1 {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(ContinuoTheme.textLight)
+                    }
+                }
+
+                // GP range
+                Text(shown.maxGP == Int.max ? "\(shown.minGP)+ GP" : "\(shown.minGP) – \(shown.maxGP) GP")
+                    .font(ContinuoTheme.rounded(13, weight: .medium))
+                    .foregroundColor(shownState == 1 ? ContinuoTheme.textLight.opacity(0.4) : shown.color)
+
+                // Description
+                Text(shown.description)
+                    .font(ContinuoTheme.rounded(14))
+                    .foregroundColor(shownState == 1
+                                     ? ContinuoTheme.textLight.opacity(0.4)
+                                     : ContinuoTheme.charcoal.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 16)
+            .padding(.bottom, 28)
+            .padding(.horizontal, 4)
+            .id(shown.id)  // forces re-render when card changes
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: scrolledTierID)
         }
     }
 
@@ -403,11 +469,12 @@ struct CoachClientProgressCard: View {
 
     private var tier: (emoji: String, name: String) {
         switch client.totalGP {
-        case 0..<100:    return ("🌱", "Seedling")
-        case 100..<300:  return ("🌿", "Sprout")
-        case 300..<600:  return ("🌸", "Bloom")
-        case 600..<1000: return ("🌳", "Flourish")
-        default:         return ("✨", "Radiant")
+        case 0..<200:    return ("🦉", "Waking")
+        case 200..<450:  return ("🦉", "Seeking")
+        case 450..<700:  return ("🦉", "Emerging")
+        case 700..<2500: return ("🦉", "Aligned")
+        case 2500..<5000:return ("🦉", "Flourishing")
+        default:         return ("🦉", "Sage")
         }
     }
 
@@ -524,6 +591,109 @@ struct BadgeCell: View {
                                 : Color.white.opacity(0.5), lineWidth: 1)
                 )
         )
+    }
+}
+
+// MARK: - Level carousel card (compact)
+
+struct LevelCarouselCard: View {
+    let tier: GrowthTier
+    let index: Int
+    let currentIndex: Int
+    let totalGP: Int
+    let progress: Double
+    let gpToNext: Int
+
+    private var isCurrent:   Bool { index == currentIndex }
+    private var isCompleted: Bool { index < currentIndex }
+    private var isLocked:    Bool { index > currentIndex }
+
+    var body: some View {
+        ZStack {
+            // Background
+            RoundedRectangle(cornerRadius: 22)
+                .fill(tier.color.opacity(isLocked ? 0.06 : 0.09))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(isCurrent ? tier.color.opacity(0.5) : tier.color.opacity(0.22),
+                                lineWidth: isCurrent ? 2 : 1)
+                )
+
+            VStack(spacing: 0) {
+
+                // ── Owl ──────────────────────────────────────
+                ZStack(alignment: .bottomTrailing) {
+                    ZStack {
+                        Image(tier.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 86, height: 86)
+                            .shadow(color: tier.color.opacity(isLocked ? 0.08 : 0.25),
+                                    radius: 14, x: -2, y: 8)
+                            .blendMode(.multiply)
+                            .saturation(isLocked ? 0.35 : 1)
+                            .opacity(isLocked ? 0.55 : 1)
+                    }
+                    .frame(width: 96, height: 96)
+
+                    if isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(5)
+                            .background(Circle().fill(ContinuoTheme.textLight.opacity(0.8)))
+                            .offset(x: 2, y: 2)
+                    } else if isCompleted {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(5)
+                            .background(Circle().fill(ContinuoTheme.olive))
+                            .offset(x: 2, y: 2)
+                    }
+                }
+                .padding(.top, 20)
+
+                // ── Name ──────────────────────────────────────
+                Text(tier.name)
+                    .font(ContinuoTheme.rounded(20, weight: .bold))
+                    .foregroundColor(isLocked
+                                     ? ContinuoTheme.charcoal.opacity(0.45)
+                                     : ContinuoTheme.charcoal)
+                    .padding(.top, 10)
+
+                // ── GP range ──────────────────────────────────
+                Text(tier.maxGP == Int.max ? "\(tier.minGP)+ GP" : "\(tier.minGP)–\(tier.maxGP) GP")
+                    .font(ContinuoTheme.rounded(12, weight: .medium))
+                    .foregroundColor(isLocked ? tier.color.opacity(0.45) : tier.color)
+                    .padding(.top, 3)
+
+                Spacer(minLength: 10)
+
+                // ── Progress bar (current only) ───────────────
+                if isCurrent {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(tier.color.opacity(0.14))
+                                .frame(height: 6)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(LinearGradient(
+                                    colors: [tier.color.opacity(0.6), tier.color],
+                                    startPoint: .leading, endPoint: .trailing
+                                ))
+                                .frame(width: geo.size.width * progress, height: 6)
+                                .animation(.spring(response: 0.5), value: progress)
+                        }
+                    }
+                    .frame(height: 6)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 18)
+                } else {
+                    Spacer(minLength: 18)
+                }
+            }
+        }
     }
 }
 

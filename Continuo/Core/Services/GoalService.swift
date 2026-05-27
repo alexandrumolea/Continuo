@@ -12,8 +12,21 @@ final class GoalService {
             .addSnapshotListener { snapshot, error in
                 if let error = error { print("❌ goalsListener: \(error.localizedDescription)") }
                 let items = snapshot?.documents.compactMap { try? $0.data(as: Goal.self) } ?? []
-                onChange(items.sorted { $0.createdAt < $1.createdAt })
+                onChange(items.sorted {
+                    if $0.order != $1.order { return $0.order < $1.order }
+                    return $0.createdAt < $1.createdAt
+                })
             }
+    }
+
+    func reorder(goals: [Goal]) async throws {
+        let batch = db.batch()
+        for (index, goal) in goals.enumerated() {
+            guard let id = goal.id else { continue }
+            batch.updateData(["order": index],
+                             forDocument: db.collection("goals").document(id))
+        }
+        try await batch.commit()
     }
 
     func addGoal(_ goal: Goal) throws {

@@ -8,6 +8,13 @@ struct CoachClientsView: View {
     @State private var selectedClient: ContinuoUser?
     @State private var listener: ListenerRegistration?
 
+    // Sheet routing — one per action type
+    @State private var clientForSession: ContinuoUser?
+    @State private var clientForAssignment: ContinuoUser?
+    @State private var clientForNotes: ContinuoUser?
+
+    private var coachId: String { auth.firebaseUser?.uid ?? "" }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -26,17 +33,38 @@ struct CoachClientsView: View {
             }
             .navigationTitle("My Clients")
             .navigationBarTitleDisplayMode(.large)
-            .sheet(item: $selectedClient) { client in
-                SendAssignmentView(client: client, coachId: auth.firebaseUser?.uid ?? "")
+            .onAppear { loadClients() }
+            .onDisappear { listener?.remove() }
+
+            // ── Sheets ──
+            .sheet(item: $clientForSession) { client in
+                CoachLogSessionView(
+                    clientId: client.id ?? "",
+                    clientName: client.displayName,
+                    coachId: coachId
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $clientForAssignment) { client in
+                SendAssignmentView(client: client, coachId: coachId)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
-            .onAppear { loadClients() }
-            .onDisappear { listener?.remove() }
+            .sheet(item: $clientForNotes) { client in
+                CoachClientNotesView(
+                    coachId: coachId,
+                    clientName: client.displayName,
+                    clientId: client.id ?? ""
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
         }
     }
 
     // MARK: - Coach code card
+
     private var coachCodeCard: some View {
         GlassCard {
             VStack(spacing: 10) {
@@ -53,6 +81,7 @@ struct CoachClientsView: View {
                     Spacer()
                     Button {
                         UIPasteboard.general.string = coachCode
+                        HapticFeedback.success()
                     } label: {
                         Image(systemName: "doc.on.doc.fill")
                             .font(.title3)
@@ -69,6 +98,7 @@ struct CoachClientsView: View {
     }
 
     // MARK: - Clients list
+
     private var clientsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Connected clients (\(clients.count))")
@@ -91,11 +121,12 @@ struct CoachClientsView: View {
                 ForEach(clients) { client in
                     NavigationLink(destination: CoachClientActivityView(
                         client: client,
-                        coachId: auth.firebaseUser?.uid ?? ""
+                        coachId: coachId
                     )) {
-                        ClientRow(client: client) {
-                            selectedClient = client
-                        }
+                        ClientRow(client: client,
+                                  onLogSession:    { clientForSession    = client },
+                                  onSendAssignment: { clientForAssignment = client },
+                                  onNotes:          { clientForNotes      = client })
                     }
                     .buttonStyle(.plain)
                 }
@@ -116,26 +147,31 @@ struct CoachClientsView: View {
 }
 
 // MARK: - Client row
+
 struct ClientRow: View {
     let client: ContinuoUser
-    let onSend: () -> Void
+    let onLogSession: () -> Void
+    let onSendAssignment: () -> Void
+    let onNotes: () -> Void
 
     @State private var sessionCount: Int = 0
 
-    private var tier: (emoji: String, name: String) {
-        let gp = client.totalGP
-        switch gp {
-        case 0..<100:   return ("🌱", "Seedling")
-        case 100..<300: return ("🌿", "Sprout")
-        case 300..<600: return ("🌸", "Bloom")
-        case 600..<1000: return ("🌳", "Flourish")
-        default:        return ("✨", "Radiant")
+    private var tier: (name: String, color: Color) {
+        switch client.totalGP {
+        case 0..<200:    return ("Waking",      Color(hex: "7B9CB8"))
+        case 200..<450:  return ("Seeking",     Color(hex: "C4873A"))
+        case 450..<700:  return ("Emerging",    Color(hex: "4E7040"))
+        case 700..<2500: return ("Aligned",     Color(hex: "2D9B8A"))
+        case 2500..<5000:return ("Flourishing", Color(hex: "C4A020"))
+        default:         return ("Sage",        Color(hex: "7B5EA7"))
         }
     }
 
     var body: some View {
         GlassCard {
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
+
+                // ── Identity row ──
                 HStack(spacing: 14) {
                     // Avatar
                     ZStack {
@@ -158,27 +194,39 @@ struct ClientRow: View {
 
                     Spacer()
 
-                    Button(action: onSend) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "paperplane.fill")
-                                .font(.caption)
-                            Text("Send")
-                                .font(ContinuoTheme.rounded(13, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(ContinuoTheme.sunYellow))
+                    // Quick stats
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(client.totalGP)")
+                            .font(ContinuoTheme.rounded(16, weight: .bold))
+                            .foregroundColor(ContinuoTheme.sunOrange)
+                        Text(tier.name)
+                            .font(ContinuoTheme.rounded(10, weight: .semibold))
+                            .foregroundColor(tier.color)
                     }
                 }
 
-                // Stats strip
-                HStack(spacing: 0) {
-                    statPill(emoji: "🤝", value: "\(sessionCount)", label: "sessions")
-                    Spacer()
-                    statPill(emoji: tier.emoji, value: tier.name, label: "level")
-                    Spacer()
-                    statPill(emoji: "⭐", value: "\(client.totalGP)", label: "GP")
+                Divider().opacity(0.25)
+
+                // ── 3 action buttons ──
+                HStack(spacing: 10) {
+                    actionButton(
+                        icon: "calendar.badge.plus",
+                        label: "Log Session",
+                        color: Color(hex: "6E443C"),
+                        action: onLogSession
+                    )
+                    actionButton(
+                        icon: "paperplane.fill",
+                        label: "Assignment",
+                        color: ContinuoTheme.sunYellow,
+                        action: onSendAssignment
+                    )
+                    actionButton(
+                        icon: "note.text",
+                        label: "Notes",
+                        color: Color(hex: "7B5EA7"),
+                        action: onNotes
+                    )
                 }
             }
         }
@@ -193,18 +241,29 @@ struct ClientRow: View {
         }
     }
 
-    private func statPill(emoji: String, value: String, label: String) -> some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 4) {
-                Text(emoji).font(.system(size: 13))
-                Text(value)
-                    .font(ContinuoTheme.rounded(13, weight: .semibold))
-                    .foregroundColor(ContinuoTheme.charcoal)
+    private func actionButton(icon: String, label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            HapticFeedback.selection()
+            action()
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(color)
+                Text(label)
+                    .font(ContinuoTheme.rounded(11, weight: .semibold))
+                    .foregroundColor(color)
             }
-            Text(label)
-                .font(ContinuoTheme.rounded(10))
-                .foregroundColor(ContinuoTheme.textLight)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(color.opacity(0.08))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(0.18), lineWidth: 1))
+            )
         }
+        .buttonStyle(.plain)
     }
 
     private var initials: String {

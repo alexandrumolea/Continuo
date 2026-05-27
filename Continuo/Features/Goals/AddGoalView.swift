@@ -25,68 +25,117 @@ struct AddGoalView: View {
         ZStack {
             ContinuoTheme.background.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 24) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("New Goal")
-                        .font(ContinuoTheme.rounded(24, weight: .bold))
-                        .foregroundColor(ContinuoTheme.charcoal)
-                    Text("What do you want to focus on?")
-                        .font(ContinuoTheme.rounded(14))
-                        .foregroundColor(ContinuoTheme.textMedium)
-                }
-                .padding(.top, 8)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
 
-                // Emoji picker
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Icon")
-                        .font(ContinuoTheme.rounded(13))
-                        .foregroundColor(ContinuoTheme.textMedium)
-                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6), spacing: 10) {
-                        ForEach(emojiOptions, id: \.self) { emoji in
-                            Button {
-                                HapticFeedback.selection()
-                                withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
-                                    selectedEmoji = emoji
-                                }
-                            } label: {
-                                Text(emoji)
-                                    .font(.system(size: 26))
+                    // Header
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("New Goal")
+                            .font(ContinuoTheme.rounded(24, weight: .bold))
+                            .foregroundColor(ContinuoTheme.charcoal)
+                        Text("What do you want to focus on?")
+                            .font(ContinuoTheme.rounded(14))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                    }
+                    .padding(.top, 8)
+
+                    // ── 1. Title ──────────────────────────────
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Goal")
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                        AuthField(icon: "flag.fill", placeholder: "e.g. Run a 5K by June…", text: $title)
+                            .focused($titleFocused)
+                    }
+
+                    // ── 2. Type ───────────────────────────────
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Type")
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+
+                        HStack(spacing: 12) {
+                            ForEach(GoalType.allCases, id: \.self) { type in
+                                Button {
+                                    HapticFeedback.selection()
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        selectedType = type
+                                        // Reset emoji to type default when switching
+                                        if selectedEmoji == GoalType.general.emoji || selectedEmoji == GoalType.competence.emoji {
+                                            selectedEmoji = type.emoji
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Text(type.emoji)
+                                            .font(.system(size: 16))
+                                        Text(type.label)
+                                            .font(ContinuoTheme.rounded(14, weight: .medium))
+                                    }
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 48)
+                                    .padding(.vertical, 11)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .fill(selectedEmoji == emoji
-                                                  ? selectedType.color.opacity(0.15)
+                                            .fill(selectedType == type
+                                                  ? type.color.opacity(0.12)
                                                   : Color.white.opacity(0.6))
-                                            .overlay(RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedEmoji == emoji
-                                                        ? selectedType.color.opacity(0.5)
-                                                        : Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(selectedType == type
+                                                            ? type.color.opacity(0.5)
+                                                            : Color(hex: "EDE8E0"),
+                                                            lineWidth: 1.5)
+                                            )
                                     )
+                                    .foregroundColor(selectedType == type
+                                                     ? type.color
+                                                     : ContinuoTheme.textMedium)
+                                }
                             }
                         }
                     }
-                }
 
-                // Title
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Goal")
-                        .font(ContinuoTheme.rounded(13))
-                        .foregroundColor(ContinuoTheme.textMedium)
-                    AuthField(icon: "flag.fill", placeholder: "e.g. Run a 5K by June…", text: $title)
-                        .focused($titleFocused)
-                }
+                    // ── 3. Emoji picker ───────────────────────
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Icon")
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                        LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6), spacing: 10) {
+                            ForEach(emojiOptions, id: \.self) { emoji in
+                                Button {
+                                    HapticFeedback.selection()
+                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                                        selectedEmoji = emoji
+                                    }
+                                } label: {
+                                    Text(emoji)
+                                        .font(.system(size: 26))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 48)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(selectedEmoji == emoji
+                                                      ? selectedType.color.opacity(0.15)
+                                                      : Color.white.opacity(0.6))
+                                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(selectedEmoji == emoji
+                                                            ? selectedType.color.opacity(0.5)
+                                                            : Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                        )
+                                }
+                            }
+                        }
+                    }
 
-                Spacer()
-
-                PrimaryButton(title: isSaving ? "Saving…" : "Add Goal", isLoading: isSaving) {
-                    save()
+                    PrimaryButton(title: isSaving ? "Saving…" : "Add Goal", isLoading: isSaving) {
+                        save()
+                    }
+                    .disabled(!canSave || isSaving)
+                    .padding(.top, 4)
                 }
-                .disabled(!canSave || isSaving)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
         }
         .presentationDragIndicator(.visible)
         .onAppear { titleFocused = true }

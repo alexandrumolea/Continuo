@@ -109,6 +109,21 @@ struct DailyPractice: Identifiable {
             competencyId: "self_trust"
         ),
         DailyPractice(
+            id: "priority_alignment",
+            title: "Priority Alignment",
+            emoji: "🧭",
+            category: "Agency",
+            categoryColor: Color(hex: "4E7040"),
+            cardColor: Color(hex: "EBF3E6"),
+            prompts: [
+                "How well did my actions align with my priorities today?",
+                "What did I learn from today?",
+                "What would I like to do tomorrow to be more aligned with my priorities?"
+            ],
+            gpReward: 5,
+            competencyId: "agency"
+        ),
+        DailyPractice(
             id: "journaling",
             title: "Daily Journal",
             emoji: "📓",

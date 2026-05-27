@@ -5,9 +5,11 @@ import SwiftUI
 struct GrowthTier: Identifiable {
     let id = UUID()
     let name: String
-    let emoji: String
     let minGP: Int
     let maxGP: Int
+    let description: String   // who you are when you've arrived here
+    let color: Color
+    let imageName: String     // asset name for this level's owl
 }
 
 struct Badge: Identifiable {
@@ -23,17 +25,58 @@ struct Badge: Identifiable {
 final class GrowthViewModel: ObservableObject {
     @Published var badges: [Badge] = []
 
-    // MARK: - Tiers
+    // MARK: - Tiers — Path of Wisdom (6 levels)
     let tiers: [GrowthTier] = [
-        GrowthTier(name: "Seedling",  emoji: "🌱",  minGP: 0,    maxGP: 100),
-        GrowthTier(name: "Sprout",    emoji: "🌿",  minGP: 100,  maxGP: 300),
-        GrowthTier(name: "Bloom",     emoji: "🌸",  minGP: 300,  maxGP: 600),
-        GrowthTier(name: "Flourish",  emoji: "🌳",  minGP: 600,  maxGP: 1000),
-        GrowthTier(name: "Radiant",   emoji: "✨",  minGP: 1000, maxGP: Int.max),
+        GrowthTier(
+            name: "Waking",
+            minGP: 0,    maxGP: 200,
+            description: "Something is waking up in you. You feel a pull toward growth but haven't yet named it.",
+            color: Color(hex: "7B9CB8"),
+            imageName: "OwlWaking"
+        ),
+        GrowthTier(
+            name: "Seeking",
+            minGP: 200,  maxGP: 450,
+            description: "You're asking the real questions. You're willing to look honestly at yourself.",
+            color: Color(hex: "C4873A"),
+            imageName: "OwlSeeking"
+        ),
+        GrowthTier(
+            name: "Emerging",
+            minGP: 450,  maxGP: 700,
+            description: "Layers are falling away. You're discovering who you are beneath the noise.",
+            color: Color(hex: "4E7040"),
+            imageName: "OwlEmerging"
+        ),
+        GrowthTier(
+            name: "Aligned",
+            minGP: 700,  maxGP: 2500,
+            description: "Your actions reflect your values. You live with intention, not reaction.",
+            color: Color(hex: "2D9B8A"),
+            imageName: "OwlAligned"
+        ),
+        GrowthTier(
+            name: "Flourishing",
+            minGP: 2500, maxGP: 5000,
+            description: "You're in full expression. Growth feels natural, not forced.",
+            color: Color(hex: "C4A020"),
+            imageName: "OwlFlourishing"
+        ),
+        GrowthTier(
+            name: "Sage",
+            minGP: 5000, maxGP: Int.max,
+            description: "You carry wisdom lightly. Your presence itself is the gift.",
+            color: Color(hex: "7B5EA7"),
+            imageName: "OwlSage"
+        ),
     ]
 
     func currentTier(gp: Int) -> GrowthTier {
         tiers.last(where: { gp >= $0.minGP }) ?? tiers[0]
+    }
+
+    func currentTierIndex(gp: Int) -> Int {
+        tiers.lastIndex(where: { gp >= $0.minGP }) ?? 0
     }
 
     func tierProgress(gp: Int) -> Double {
@@ -51,14 +94,14 @@ final class GrowthViewModel: ObservableObject {
     // MARK: - Badges
     func loadBadges(totalGP: Int) {
         badges = [
-            Badge(id: "pioneer",    title: "Pioneer",     emoji: "🏔️", description: "Earn your first GP",    requiredGP: 1,   isUnlocked: totalGP >= 1),
-            Badge(id: "consistent", title: "Consistent",  emoji: "🔥", description: "Reach 50 GP",           requiredGP: 50,  isUnlocked: totalGP >= 50),
-            Badge(id: "aligned",    title: "Deep Aligned",emoji: "🎯", description: "Reach 100 GP",          requiredGP: 100, isUnlocked: totalGP >= 100),
-            Badge(id: "aware",      title: "Self-Aware",  emoji: "🌊", description: "Reach 150 GP",          requiredGP: 150, isUnlocked: totalGP >= 150),
-            Badge(id: "ascending",  title: "Ascending",   emoji: "⬆️", description: "Reach 200 GP",          requiredGP: 200, isUnlocked: totalGP >= 200),
-            Badge(id: "bloom",      title: "In Bloom",    emoji: "🌸", description: "Reach Bloom tier",      requiredGP: 300, isUnlocked: totalGP >= 300),
-            Badge(id: "radiant",    title: "Radiant",     emoji: "✨", description: "Reach 500 GP",          requiredGP: 500, isUnlocked: totalGP >= 500),
-            Badge(id: "master",     title: "Master",      emoji: "🏆", description: "Reach Radiant tier",    requiredGP: 1000,isUnlocked: totalGP >= 1000),
+            Badge(id: "pioneer",     title: "Pioneer",     emoji: "🏔️", description: "Earn your first GP",         requiredGP: 1,    isUnlocked: totalGP >= 1),
+            Badge(id: "consistent",  title: "Consistent",  emoji: "🔥", description: "Reach 100 GP",               requiredGP: 100,  isUnlocked: totalGP >= 100),
+            Badge(id: "seeking",     title: "Seeking",     emoji: "🔍", description: "Reach Seeking level",        requiredGP: 200,  isUnlocked: totalGP >= 200),
+            Badge(id: "aware",       title: "Self-Aware",  emoji: "🌊", description: "Reach 350 GP",               requiredGP: 350,  isUnlocked: totalGP >= 350),
+            Badge(id: "emerging",    title: "Emerging",    emoji: "🌿", description: "Reach Emerging level",       requiredGP: 450,  isUnlocked: totalGP >= 450),
+            Badge(id: "aligned",     title: "Aligned",     emoji: "🎯", description: "Reach Aligned level",        requiredGP: 700,  isUnlocked: totalGP >= 700),
+            Badge(id: "flourishing", title: "Flourishing", emoji: "🌸", description: "Reach Flourishing level",    requiredGP: 2500, isUnlocked: totalGP >= 2500),
+            Badge(id: "sage",        title: "Sage",        emoji: "🦉", description: "Reach Sage level",           requiredGP: 5000, isUnlocked: totalGP >= 5000),
         ]
     }
 }

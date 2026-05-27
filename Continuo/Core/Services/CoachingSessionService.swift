@@ -4,11 +4,12 @@ import FirebaseFirestore
 final class CoachingSessionService {
     static let shared = CoachingSessionService()
     private let db = Firestore.firestore()
-
     private let gpReward = 30
 
-    // Real-time listener — newest sessions first
-    func sessionsListener(userId: String, onChange: @escaping ([CoachingSession]) -> Void) -> ListenerRegistration {
+    // MARK: - Real-time listener
+
+    func sessionsListener(userId: String,
+                          onChange: @escaping ([CoachingSession]) -> Void) -> ListenerRegistration {
         db.collection("coachingSessions")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { snapshot, error in
@@ -18,17 +19,18 @@ final class CoachingSessionService {
             }
     }
 
-    // Batch: save session + award GP + create journey event
-    func logSession(userId: String, sessionDate: Date, conclusions: String, actions: String) throws {
+    // MARK: - Client logs own session
+
+    func logSession(userId: String, sessionDate: Date,
+                    summary: String, conclusions: String, actions: String) throws {
         let batch = db.batch()
 
         let session = CoachingSession(
-            userId: userId,
+            userId: userId, coachId: nil,
             sessionDate: sessionDate,
-            conclusions: conclusions,
-            actions: actions,
-            gpEarned: gpReward,
-            createdAt: Date()
+            summary: summary.isEmpty ? nil : summary,
+            conclusions: conclusions, actions: actions,
+            gpEarned: gpReward, createdAt: Date()
         )
         let sessionRef = db.collection("coachingSessions").document()
         try batch.setData(from: session, forDocument: sessionRef)
@@ -48,17 +50,54 @@ final class CoachingSessionService {
         batch.commit()
     }
 
-    // Edit session notes/date — no GP change
-    func updateSession(_ session: CoachingSession, date: Date, conclusions: String, actions: String) async throws {
+    // MARK: - Coach logs session for a client
+
+    func logSessionByCoach(clientId: String, coachId: String,
+                           sessionDate: Date, summary: String,
+                           conclusions: String, actions: String) throws {
+        let batch = db.batch()
+
+        let session = CoachingSession(
+            userId: clientId, coachId: coachId,
+            sessionDate: sessionDate,
+            summary: summary.isEmpty ? nil : summary,
+            conclusions: conclusions, actions: actions,
+            gpEarned: gpReward, createdAt: Date()
+        )
+        let sessionRef = db.collection("coachingSessions").document()
+        try batch.setData(from: session, forDocument: sessionRef)
+
+        let userRef = db.collection("users").document(clientId)
+        batch.updateData(["totalGP": FieldValue.increment(Int64(gpReward))], forDocument: userRef)
+
+        let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none
+        let event = JourneyEvent(
+            userId: clientId, type: .sessionLogged,
+            title: "🤝 Coaching Session", subtitle: f.string(from: sessionDate),
+            gpEarned: gpReward, createdAt: Date()
+        )
+        let eventRef = db.collection("journeyEvents").document()
+        try batch.setData(from: event, forDocument: eventRef)
+
+        batch.commit()
+    }
+
+    // MARK: - Update (client edits their own OR a coach-logged session)
+
+    func updateSession(_ session: CoachingSession, date: Date,
+                       summary: String, conclusions: String, actions: String) async throws {
         guard let id = session.id else { return }
-        try await db.collection("coachingSessions").document(id).updateData([
+        var data: [String: Any] = [
             "sessionDate": Timestamp(date: date),
             "conclusions": conclusions,
             "actions":     actions
-        ])
+        ]
+        if !summary.isEmpty { data["summary"] = summary }
+        try await db.collection("coachingSessions").document(id).updateData(data)
     }
 
-    // Delete session AND deduct its GP from the user's total
+    // MARK: - Delete session + deduct GP
+
     func deleteSession(_ session: CoachingSession) async throws {
         guard let id = session.id else { return }
         let batch = db.batch()

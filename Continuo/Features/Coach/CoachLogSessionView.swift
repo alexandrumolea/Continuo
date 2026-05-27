@@ -1,8 +1,11 @@
 import SwiftUI
 
-struct LogCoachingSessionView: View {
-    let userId: String
-    let existingSession: CoachingSession?   // nil → new, non-nil → edit
+/// Coach logs (or edits) a coaching session on behalf of a specific client.
+struct CoachLogSessionView: View {
+    let clientId: String
+    let clientName: String
+    let coachId: String
+    var existingSession: CoachingSession? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -17,10 +20,12 @@ struct LogCoachingSessionView: View {
 
     private let accent = Color(hex: "6E443C")
     private var isEditing: Bool { existingSession != nil }
-    private var isCoachLogged: Bool { existingSession?.isCoachLogged == true }
 
-    init(userId: String, existingSession: CoachingSession? = nil) {
-        self.userId          = userId
+    init(clientId: String, clientName: String, coachId: String,
+         existingSession: CoachingSession? = nil) {
+        self.clientId        = clientId
+        self.clientName      = clientName
+        self.coachId         = coachId
         self.existingSession = existingSession
         _sessionDate = State(initialValue: existingSession?.sessionDate ?? Date())
         _summary     = State(initialValue: existingSession?.summaryText ?? "")
@@ -40,31 +45,15 @@ struct LogCoachingSessionView: View {
                         // ── Header ──
                         VStack(alignment: .leading, spacing: 6) {
                             Text("🤝").font(.system(size: 44))
-                            Text(isEditing ? "Edit Session" : "Log Coaching Session")
+                            Text(isEditing ? "Edit Session" : "Log Session")
                                 .font(ContinuoTheme.rounded(24, weight: .bold))
                                 .foregroundColor(ContinuoTheme.charcoal)
+                            HStack(spacing: 4) {
+                                Text("For").font(ContinuoTheme.rounded(13)).foregroundColor(accent.opacity(0.6))
+                                Text(clientName).font(ContinuoTheme.rounded(13, weight: .semibold)).foregroundColor(accent)
+                            }
                         }
                         .padding(.top, 4)
-
-                        // ── Privacy notice (client, non-edit only) ──
-                        if !isEditing {
-                            HStack(spacing: 10) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Color(hex: "7B5EA7"))
-                                Text("Your notes are private — your coach will only see that a session was logged.")
-                                    .font(ContinuoTheme.rounded(12))
-                                    .foregroundColor(Color(hex: "7B5EA7").opacity(0.85))
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "7B5EA7").opacity(0.07))
-                                    .overlay(RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(hex: "7B5EA7").opacity(0.18), lineWidth: 1))
-                            )
-                        }
 
                         // ── Date ──
                         HStack {
@@ -86,29 +75,17 @@ struct LogCoachingSessionView: View {
                                     .stroke(Color(hex: "EDE8E0"), lineWidth: 1))
                         )
 
-                        // ── Summary ──
-                        sessionField(
-                            title: "Session Summary",
-                            icon: "doc.text",
-                            placeholder: "What was this session about?",
-                            text: $summary
-                        )
+                        sessionField(title: "Session Summary", icon: "doc.text",
+                                     placeholder: "What was this session about?",
+                                     text: $summary)
 
-                        // ── Conclusions ──
-                        sessionField(
-                            title: "Conclusions",
-                            icon: "lightbulb",
-                            placeholder: "What did you conclude or realise?",
-                            text: $conclusions
-                        )
+                        sessionField(title: "Conclusions", icon: "lightbulb",
+                                     placeholder: "What did the client conclude or realise?",
+                                     text: $conclusions)
 
-                        // ── Actions ──
-                        sessionField(
-                            title: "Actions",
-                            icon: "checkmark.square",
-                            placeholder: "What will you commit to do differently?",
-                            text: $actions
-                        )
+                        sessionField(title: "Actions", icon: "checkmark.square",
+                                     placeholder: "What action did the client commit to?",
+                                     text: $actions)
 
                         // ── Save / Done ──
                         if saved {
@@ -187,7 +164,7 @@ struct LogCoachingSessionView: View {
     private var doneBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill").foregroundColor(accent).font(.title3)
-            Text(isEditing ? "Changes saved." : "Session logged! +30 GP added.")
+            Text(isEditing ? "Changes saved." : "Session logged! +30 GP added for \(clientName).")
                 .font(ContinuoTheme.rounded(15, weight: .semibold))
                 .foregroundColor(ContinuoTheme.charcoal)
         }
@@ -220,8 +197,9 @@ struct LogCoachingSessionView: View {
                 await MainActor.run { finish() }
             }
         } else {
-            try? CoachingSessionService.shared.logSession(
-                userId: userId, sessionDate: sessionDate,
+            try? CoachingSessionService.shared.logSessionByCoach(
+                clientId: clientId, coachId: coachId,
+                sessionDate: sessionDate,
                 summary: trimSummary, conclusions: trimConclusions, actions: trimActions
             )
             finish()

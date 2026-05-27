@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @State private var selectedGoal: Goal? = nil
     @State private var showAddGoal = false
+    @State private var showReorderGoals = false
 
     private var greeting: String {
         let h = Calendar.current.component(.hour, from: Date())
@@ -72,6 +73,12 @@ struct HomeView: View {
                             userId: auth.firebaseUser?.uid ?? "",
                             onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
+                    } else if practice.id == "priority_alignment" {
+                        PriorityAlignmentDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
                     } else {
                         DailyPracticeDetailView(
                             practice: practice,
@@ -96,7 +103,12 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showAddGoal) {
                 AddGoalView(userId: auth.firebaseUser?.uid ?? "")
-                    .presentationDetents([.medium])
+                    .presentationDetents([.large])
+            }
+            .sheet(isPresented: $showReorderGoals) {
+                GoalReorderSheet(goals: $vm.goals)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -109,17 +121,33 @@ struct HomeView: View {
                     .font(ContinuoTheme.rounded(20, weight: .semibold))
                     .foregroundColor(ContinuoTheme.charcoal)
                 Spacer()
-                Button { showAddGoal = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 32, height: 32)
-                            .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(ContinuoTheme.charcoal.opacity(0.7))
+                HStack(spacing: 8) {
+                    if !vm.goals.isEmpty {
+                        Button { showReorderGoals = true } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 32, height: 32)
+                                    .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                                Image(systemName: "arrow.up.arrow.down")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(ContinuoTheme.charcoal.opacity(0.7))
+                            }
+                            .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 0.5))
+                        }
                     }
-                    .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 0.5))
+                    Button { showAddGoal = true } label: {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 32, height: 32)
+                                .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(ContinuoTheme.charcoal.opacity(0.7))
+                        }
+                        .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 0.5))
+                    }
                 }
             }
 
@@ -254,25 +282,40 @@ struct HomeView: View {
     // MARK: - GP card
     private var gpCard: some View {
         GlassCard {
-            HStack {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Growth Points")
                         .font(ContinuoTheme.rounded(12))
                         .foregroundColor(ContinuoTheme.textMedium)
-                    Text("\(auth.profile?.totalGP ?? 0) GP")
+                    Text("\(auth.profile?.totalGP ?? 0)")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundColor(ContinuoTheme.terracotta)
+                    Text(currentLevel.name)
+                        .font(ContinuoTheme.rounded(12, weight: .semibold))
+                        .foregroundColor(currentLevel.color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(currentLevel.color.opacity(0.12)))
                 }
                 Spacer()
-                ZStack {
-                    Circle()
-                        .fill(ContinuoTheme.sunOrange.opacity(0.14))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: "star.fill")
-                        .font(.title2)
-                        .foregroundColor(ContinuoTheme.sunOrange)
-                }
+                Image(currentLevel.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 64, height: 64)
+                    .shadow(color: currentLevel.color.opacity(0.22), radius: 10, x: -2, y: 6)
+                    .blendMode(.multiply)
             }
+        }
+    }
+
+    private var currentLevel: (name: String, imageName: String, color: Color) {
+        switch auth.profile?.totalGP ?? 0 {
+        case 0..<200:    return ("Waking",     "OwlWaking",     Color(hex: "7B9CB8"))
+        case 200..<450:  return ("Seeking",    "OwlSeeking",    Color(hex: "C4873A"))
+        case 450..<700:  return ("Emerging",   "OwlEmerging",   Color(hex: "4E7040"))
+        case 700..<2500: return ("Aligned",    "OwlAligned",    Color(hex: "2D9B8A"))
+        case 2500..<5000:return ("Flourishing","OwlFlourishing",Color(hex: "C4A020"))
+        default:         return ("Sage",       "OwlSage",       Color(hex: "7B5EA7"))
         }
     }
 
