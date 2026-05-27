@@ -151,7 +151,8 @@ struct DailyPracticeDetailView: View {
                 responses: trimmed,
                 userId: userId
             )
-            onCompleted?(practice.id)          // update parent immediately
+            onCompleted?(practice.id)
+            HapticFeedback.success()
             withAnimation { showSuccess = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { dismiss() }
         } catch {

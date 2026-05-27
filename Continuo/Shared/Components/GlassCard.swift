@@ -1,4 +1,13 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Haptic feedback helpers
+enum HapticFeedback {
+    static func light()     { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    static func medium()    { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
+    static func success()   { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+}
 
 // MARK: - Glass card container
 struct GlassCard<Content: View>: View {
@@ -27,7 +36,7 @@ struct GlassCard<Content: View>: View {
     }
 }
 
-// MARK: - Background glow orbs (subtile, luminoase)
+// MARK: - Background glow orbs
 struct BackgroundOrbs: View {
     var body: some View {
         ZStack {
@@ -45,6 +54,41 @@ struct BackgroundOrbs: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Press scale button style (works outside ScrollView — PrimaryButton etc.)
+struct ScaleButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.96
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.55), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Pressable card modifier (reliable inside horizontal ScrollView)
+struct PressableCard: ViewModifier {
+    var scale: CGFloat = 0.94
+    var action: () -> Void
+    @GestureState private var isPressed = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPressed ? scale : 1.0)
+            .brightness(isPressed ? -0.04 : 0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.55), value: isPressed)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isPressed) { _, state, _ in state = true }
+            )
+            .onTapGesture { HapticFeedback.light(); action() }
+    }
+}
+
+extension View {
+    func pressableCard(scale: CGFloat = 0.94, action: @escaping () -> Void) -> some View {
+        modifier(PressableCard(scale: scale, action: action))
     }
 }
 
@@ -73,6 +117,7 @@ struct PrimaryButton: View {
                     .shadow(color: ContinuoTheme.sunOrange.opacity(0.45), radius: 12, x: 0, y: 6)
             )
         }
+        .buttonStyle(ScaleButtonStyle(scale: 0.97))
         .disabled(isLoading)
     }
 }

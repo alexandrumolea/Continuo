@@ -469,6 +469,7 @@ struct AssignmentDetailView: View {
         let text = responseText.trimmingCharacters(in: .whitespaces)
         do {
             try service.completeAssignment(assignment, response: text, userId: userId)
+            HapticFeedback.success()
             withAnimation {
                 showSuccess = true
                 responseText = ""
@@ -486,6 +487,7 @@ struct AssignmentDetailView: View {
     private func markFinished() {
         do {
             try service.finishAssignment(assignment, userId: userId)
+            HapticFeedback.success()
             dismiss()
         } catch {
             print("❌ finishAssignment error: \(error)")

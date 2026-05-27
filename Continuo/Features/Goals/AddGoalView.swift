@@ -6,8 +6,16 @@ struct AddGoalView: View {
 
     @State private var title = ""
     @State private var selectedType: GoalType = .general
+    @State private var selectedEmoji: String = "🌱"
     @State private var isSaving = false
     @FocusState private var titleFocused: Bool
+
+    private let emojiOptions = [
+        "🌱", "🎯", "💪", "🧠", "⭐", "🔥",
+        "🏆", "🌊", "🤝", "❤️", "🌿", "💡",
+        "🗺️", "🔑", "🌟", "🧘", "📖", "✍️",
+        "🦁", "🌸", "🎨", "🪴", "🌙", "✨"
+    ]
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -29,36 +37,33 @@ struct AddGoalView: View {
                 }
                 .padding(.top, 8)
 
-                // Type picker
+                // Emoji picker
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Type")
+                    Text("Icon")
                         .font(ContinuoTheme.rounded(13))
                         .foregroundColor(ContinuoTheme.textMedium)
-
-                    HStack(spacing: 10) {
-                        ForEach(GoalType.allCases, id: \.self) { type in
+                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6), spacing: 10) {
+                        ForEach(emojiOptions, id: \.self) { emoji in
                             Button {
-                                withAnimation(.easeInOut(duration: 0.15)) { selectedType = type }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Text(type.emoji)
-                                    Text(type.label)
-                                        .font(ContinuoTheme.rounded(14, weight: .medium))
+                                HapticFeedback.selection()
+                                withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                                    selectedEmoji = emoji
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(RoundedRectangle(cornerRadius: 14)
-                                    .fill(selectedType == type
-                                          ? type.color.opacity(0.12)
-                                          : Color.clear))
-                                .overlay(RoundedRectangle(cornerRadius: 14)
-                                    .stroke(selectedType == type
-                                            ? type.color
-                                            : ContinuoTheme.textLight.opacity(0.5),
-                                            lineWidth: 1.5))
-                                .foregroundColor(selectedType == type
-                                                 ? type.color
-                                                 : ContinuoTheme.textMedium)
+                            } label: {
+                                Text(emoji)
+                                    .font(.system(size: 26))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(selectedEmoji == emoji
+                                                  ? selectedType.color.opacity(0.15)
+                                                  : Color.white.opacity(0.6))
+                                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                                .stroke(selectedEmoji == emoji
+                                                        ? selectedType.color.opacity(0.5)
+                                                        : Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                    )
                             }
                         }
                     }
@@ -92,9 +97,10 @@ struct AddGoalView: View {
         guard !trimmed.isEmpty else { return }
         isSaving = true
         let goal = Goal(userId: userId, title: trimmed, type: selectedType,
-                        progress: 0, createdAt: Date())
+                        emoji: selectedEmoji, progress: 0, createdAt: Date())
         do {
             try GoalService.shared.addGoal(goal)
+            HapticFeedback.success()
             dismiss()
         } catch {
             print("❌ addGoal: \(error)")

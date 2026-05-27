@@ -36,12 +36,13 @@ struct Goal: Identifiable, Codable {
     var userId: String
     var title: String
     var type: GoalType
+    var emoji: String?         // custom emoji; nil → falls back to type.emoji
     var progress: Double       // 0.0 – 1.0
     var createdAt: Date
     var successMeasure: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, userId, title, type, progress, createdAt, successMeasure
+        case id, userId, title, type, emoji, progress, createdAt, successMeasure
     }
 }
 

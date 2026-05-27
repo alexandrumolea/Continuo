@@ -48,6 +48,7 @@ struct SendAssignmentView: View {
                         LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6), spacing: 10) {
                             ForEach(emojiOptions, id: \.self) { emoji in
                                 Button {
+                                    HapticFeedback.selection()
                                     withAnimation(.easeInOut(duration: 0.1)) { selectedEmoji = emoji }
                                 } label: {
                                     Text(emoji)
@@ -159,6 +160,7 @@ struct SendAssignmentView: View {
                             ForEach(Competency.catalog) { competency in
                                 let isSelected = selectedCompetencyId == competency.id
                                 Button {
+                                    HapticFeedback.selection()
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         selectedCompetencyId = isSelected ? nil : competency.id
                                     }
@@ -218,6 +220,7 @@ struct SendAssignmentView: View {
         )
         do {
             try AssignmentService.shared.sendAssignment(assignment)
+            HapticFeedback.success()
             withAnimation { didSend = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
         } catch {

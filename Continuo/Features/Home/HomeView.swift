@@ -339,7 +339,8 @@ struct HomeView: View {
                             }
 
                             Button {
-                                withAnimation(.easeInOut(duration: 0.18)) { selectedDate = day }
+                                HapticFeedback.selection()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedDate = day }
                             } label: {
                                 VStack(spacing: 4) {
                                     Text(dayAbbrev(day))
@@ -446,8 +447,8 @@ struct GoalCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Emoji + title
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(goal.type.emoji)
-                        .font(.system(size: 28))
+                    Text(goal.emoji ?? goal.type.emoji)
+                        .font(.system(size: 32))
                     Text(goal.title)
                         .font(ContinuoTheme.rounded(15, weight: .bold))
                         .foregroundColor(ContinuoTheme.charcoal)
@@ -511,14 +512,24 @@ struct DailyPracticeCard: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 // Emoji + title
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(practice.emoji)
-                        .font(.system(size: 28))
-                    Text(practice.title)
-                        .font(ContinuoTheme.rounded(15, weight: .bold))
-                        .foregroundColor(ContinuoTheme.charcoal)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                ZStack(alignment: .topTrailing) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(practice.emoji)
+                            .font(.system(size: 28))
+                        Text(practice.title)
+                            .font(ContinuoTheme.rounded(15, weight: .bold))
+                            .foregroundColor(ContinuoTheme.charcoal)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if isCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(ContinuoTheme.olive)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                 }
 
                 Spacer(minLength: 12)
@@ -526,7 +537,7 @@ struct DailyPracticeCard: View {
                 // Prompt preview
                 Text(practice.prompts.first ?? "")
                     .font(ContinuoTheme.rounded(12))
-                    .foregroundColor(ContinuoTheme.charcoal.opacity(0.65))
+                    .foregroundColor(ContinuoTheme.charcoal.opacity(isCompleted ? 0.4 : 0.65))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -535,7 +546,7 @@ struct DailyPracticeCard: View {
                 // Footer
                 HStack(spacing: 8) {
                     if isCompleted {
-                        Label("Done", systemImage: "checkmark.circle.fill")
+                        Text("Completed")
                             .font(ContinuoTheme.rounded(11, weight: .semibold))
                             .foregroundColor(ContinuoTheme.olive)
                     } else {
@@ -556,19 +567,22 @@ struct DailyPracticeCard: View {
             .frame(width: 200, height: 180)
             .background(
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(isCompleted ? Color(hex: "F2F2F2") : practice.cardColor)
+                    .fill(practice.cardColor)
                     .overlay(
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(
                                 isCompleted
-                                    ? Color(hex: "DDDAD6")
+                                    ? ContinuoTheme.olive.opacity(0.25)
                                     : practice.categoryColor.opacity(0.18),
                                 lineWidth: 1
                             )
                     )
             )
-            .opacity(isCompleted ? 0.7 : 1.0)
-            .shadow(color: Color(hex: "2D2926").opacity(isCompleted ? 0 : 0.05), radius: 6, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(isCompleted ? 0.35 : 0))
+            )
+            .shadow(color: Color(hex: "2D2926").opacity(isCompleted ? 0.02 : 0.06), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -597,6 +611,7 @@ struct JourneyRow: View {
             // Delete button (revealed on swipe)
             if onDelete != nil {
                 Button {
+                    HapticFeedback.medium()
                     withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
                     onDelete?()
                 } label: {
@@ -850,7 +865,7 @@ struct SwipeableAssignmentCard: View {
         )) {
             AssignmentFeedCard(assignment: assignment)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScaleButtonStyle())
         .contextMenu {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete assignment", systemImage: "trash")

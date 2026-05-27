@@ -140,7 +140,7 @@ struct GoalDetailView: View {
                     RoundedRectangle(cornerRadius: 14)
                         .fill(goal.type.cardColor)
                         .frame(width: 56, height: 56)
-                    Text(goal.type.emoji)
+                    Text(goal.emoji ?? goal.type.emoji)
                         .font(.system(size: 28))
                 }
                 VStack(alignment: .leading, spacing: 4) {
