@@ -34,11 +34,14 @@ struct AssignmentDetailView: View {
                     headerCard
                     if assignment.isDueNow || completions.isEmpty {
                         responseCard
+                    } else if assignment.status == .active && assignment.effectiveFrequency != .once {
+                        notDueYetBanner
                     }
                     if !completions.isEmpty {
                         historySection
                     }
-                    if assignment.status == .active && !completions.isEmpty {
+                    if assignment.status == .active && !completions.isEmpty
+                        && assignment.effectiveFrequency == .once {
                         finishButton
                     }
                 }
@@ -101,6 +104,73 @@ struct AssignmentDetailView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Not due yet banner (daily / weekly assignments)
+    private var notDueYetBanner: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(ContinuoTheme.olive)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(bannerTitle)
+                            .font(ContinuoTheme.rounded(14, weight: .semibold))
+                            .foregroundColor(ContinuoTheme.charcoal)
+                        if let next = assignment.nextAvailableDate {
+                            Text(bannerSubtitle(next))
+                                .font(ContinuoTheme.rounded(12))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+
+                if let next = assignment.nextAvailableDate {
+                    let progress = cooldownProgress(next: next)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(ContinuoTheme.olive.opacity(0.12))
+                                .frame(height: 6)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(ContinuoTheme.olive.opacity(0.5))
+                                .frame(width: geo.size.width * progress, height: 6)
+                                .animation(.easeInOut, value: progress)
+                        }
+                    }
+                    .frame(height: 6)
+                }
+            }
+        }
+    }
+
+    private var bannerTitle: String {
+        switch assignment.effectiveFrequency {
+        case .daily:  return "Done for today! 🌿"
+        case .weekly: return "Done for this week! 🌿"
+        default:      return "Completed! 🌿"
+        }
+    }
+
+    private func bannerSubtitle(_ next: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let rel = formatter.localizedString(for: next, relativeTo: Date())
+        switch assignment.effectiveFrequency {
+        case .daily:  return "Next completion available tomorrow · \(next.formatted(date: .abbreviated, time: .omitted))"
+        case .weekly: return "Next completion available \(rel)"
+        default:      return "Next completion available \(rel)"
+        }
+    }
+
+    /// 0…1 — how much of the cooldown has elapsed (for the progress bar)
+    private func cooldownProgress(next: Date) -> CGFloat {
+        guard let last = assignment.lastCompletedAt else { return 1 }
+        let total = next.timeIntervalSince(last)
+        let elapsed = Date().timeIntervalSince(last)
+        return CGFloat(min(max(elapsed / total, 0), 1))
     }
 
     // MARK: - Response card

@@ -1,7 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 
-// MARK: - Assignment row (swipeable + expandable) — used in CoachClientActivityView
+// MARK: - Assignment row (expandable) — used in CoachClientActivityView
 
 struct CoachAssignmentRow: View {
     let assignment: Assignment
@@ -11,9 +11,6 @@ struct CoachAssignmentRow: View {
     let onToggleExpand: () -> Void
     let onDelete: () -> Void
 
-    @State private var swipeOffset: CGFloat = 0
-    private let deleteWidth: CGFloat = 72
-
     @State private var expandedCompletionId: String? = nil
     @State private var draft = ""
     @State private var editingMsg: ThreadMessage? = nil
@@ -22,40 +19,7 @@ struct CoachAssignmentRow: View {
     @FocusState private var editMsgFocused: Bool
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            // Delete reveal
-            Button {
-                HapticFeedback.medium()
-                withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
-                onDelete()
-            } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "trash.fill").font(.system(size: 16))
-                    Text("Delete").font(ContinuoTheme.rounded(10, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .frame(width: deleteWidth).frame(maxHeight: .infinity)
-            }
-            .background(Color.red.opacity(0.82))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .opacity(swipeOffset < -8 ? 1 : 0)
-            .animation(.easeInOut(duration: 0.15), value: swipeOffset)
-
-            cardContent.offset(x: swipeOffset)
-        }
-        .clipped()
-        .gesture(
-            DragGesture(minimumDistance: 15, coordinateSpace: .local)
-                .onChanged { val in
-                    guard val.translation.width < 0 else { return }
-                    swipeOffset = max(val.translation.width, -deleteWidth)
-                }
-                .onEnded { val in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                        swipeOffset = val.translation.width < -(deleteWidth / 2) ? -deleteWidth : 0
-                    }
-                }
-        )
+        cardContent
     }
 
     // MARK: - Card
@@ -63,66 +27,87 @@ struct CoachAssignmentRow: View {
     private var cardContent: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 0) {
-                // Header (tap to expand)
-                Button {
-                    HapticFeedback.selection()
-                    withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
-                    onToggleExpand()
-                } label: {
-                    HStack(alignment: .top, spacing: 12) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(ContinuoTheme.terracotta.opacity(0.10))
-                                .frame(width: 42, height: 42)
-                            Text(assignment.emoji ?? "🎯").font(.title3)
-                        }
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(assignment.title)
-                                .font(ContinuoTheme.rounded(15, weight: .semibold))
-                                .foregroundColor(ContinuoTheme.charcoal)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            HStack(spacing: 6) {
-                                statusPill
-                                if !completions.isEmpty {
-                                    Text("·").foregroundColor(ContinuoTheme.textLight)
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 10)).foregroundColor(ContinuoTheme.olive)
-                                    Text("\(completions.count)× completed")
-                                        .font(ContinuoTheme.rounded(11))
-                                        .foregroundColor(ContinuoTheme.textMedium)
-                                }
+                // Header: tappable expand area + delete menu side by side
+                HStack(alignment: .top, spacing: 4) {
+                    Button {
+                        HapticFeedback.selection()
+                        onToggleExpand()
+                    } label: {
+                        HStack(alignment: .top, spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(ContinuoTheme.terracotta.opacity(0.10))
+                                    .frame(width: 42, height: 42)
+                                Text(assignment.emoji ?? "🎯").font(.title3)
                             }
 
-                            if !assignment.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Text(assignment.description)
-                                    .font(ContinuoTheme.rounded(13))
-                                    .foregroundColor(ContinuoTheme.charcoal.opacity(0.7))
-                                    .fixedSize(horizontal: false, vertical: true)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(assignment.title)
+                                    .font(ContinuoTheme.rounded(15, weight: .semibold))
+                                    .foregroundColor(ContinuoTheme.charcoal)
                                     .multilineTextAlignment(.leading)
-                            }
+                                    .fixedSize(horizontal: false, vertical: true)
 
-                            HStack(spacing: 10) {
-                                Label("\(assignment.gpReward) GP", systemImage: "star.fill")
-                                    .font(ContinuoTheme.rounded(11))
-                                    .foregroundColor(ContinuoTheme.sunOrange)
-                                if let expiry = assignment.expiresAt {
-                                    Label(expiry.formatted(date: .abbreviated, time: .omitted),
-                                          systemImage: "calendar")
+                                HStack(spacing: 6) {
+                                    statusPill
+                                    if assignment.effectiveFrequency != .once {
+                                        frequencyPill
+                                    }
+                                    if !completions.isEmpty {
+                                        Text("·").foregroundColor(ContinuoTheme.textLight)
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 10)).foregroundColor(ContinuoTheme.olive)
+                                        Text("\(completions.count)× completed")
+                                            .font(ContinuoTheme.rounded(11))
+                                            .foregroundColor(ContinuoTheme.textMedium)
+                                    }
+                                }
+
+                                if !assignment.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(assignment.description)
+                                        .font(ContinuoTheme.rounded(13))
+                                        .foregroundColor(ContinuoTheme.charcoal.opacity(0.7))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
+                                }
+
+                                HStack(spacing: 10) {
+                                    Label("\(assignment.gpReward) GP", systemImage: "star.fill")
                                         .font(ContinuoTheme.rounded(11))
-                                        .foregroundColor(ContinuoTheme.textLight)
+                                        .foregroundColor(ContinuoTheme.sunOrange)
+                                    if let expiry = assignment.expiresAt {
+                                        Label(expiry.formatted(date: .abbreviated, time: .omitted),
+                                              systemImage: "calendar")
+                                            .font(ContinuoTheme.rounded(11))
+                                            .foregroundColor(ContinuoTheme.textLight)
+                                    }
                                 }
                             }
-                        }
 
-                        Spacer(minLength: 4)
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption).foregroundColor(ContinuoTheme.textLight).padding(.top, 2)
+                            Spacer(minLength: 0)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption).foregroundColor(ContinuoTheme.textLight).padding(.top, 2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Delete menu — sibling of the expand button (no gesture conflict)
+                    Menu {
+                        Button(role: .destructive) {
+                            HapticFeedback.medium()
+                            onDelete()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(ContinuoTheme.textLight)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Rectangle())
                     }
                 }
-                .buttonStyle(.plain)
 
                 // Expanded: completions
                 if isExpanded {
@@ -157,6 +142,27 @@ struct CoachAssignmentRow: View {
         }()
         return Text(label)
             .font(ContinuoTheme.rounded(10, weight: .semibold)).foregroundColor(color)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(Capsule().fill(color.opacity(0.12)))
+    }
+
+    // MARK: - Frequency pill
+
+    private var frequencyPill: some View {
+        let freq = assignment.effectiveFrequency
+        let color: Color = {
+            switch freq {
+            case .daily:  return ContinuoTheme.olive
+            case .weekly: return Color(hex: "7B5EA7")
+            case .open:   return ContinuoTheme.sunOrange
+            case .once:   return ContinuoTheme.textLight
+            }
+        }()
+        return Label(freq.label, systemImage: freq.icon)
+            .font(ContinuoTheme.rounded(10, weight: .semibold))
+            .foregroundColor(color)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(Capsule().fill(color.opacity(0.12)))
     }
@@ -257,8 +263,11 @@ struct CoachAssignmentRow: View {
                             editMsgDraft = msg.text; editingMsg = msg; editMsgFocused = true
                         } label: { Label("Edit", systemImage: "pencil") }
                     } label: {
-                        Image(systemName: "ellipsis").font(.caption)
-                            .foregroundColor(ContinuoTheme.textLight).padding(6)
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(ContinuoTheme.textLight)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Rectangle())
                     }
                 }
             }

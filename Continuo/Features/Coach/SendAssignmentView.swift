@@ -7,6 +7,7 @@ struct SendAssignmentView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var selectedEmoji: String = "🎯"
+    @State private var frequency: AssignmentFrequency = .once
     @State private var hasExpiry = false
 
     private let emojiOptions = [
@@ -135,6 +136,41 @@ struct SendAssignmentView: View {
                         .padding(.horizontal, 8)
                     }
 
+                    // Frequency
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Frequency")
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach([AssignmentFrequency.once, .daily, .weekly, .open], id: \.self) { option in
+                                    Button {
+                                        HapticFeedback.selection()
+                                        withAnimation(.easeInOut(duration: 0.15)) { frequency = option }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: option.icon).font(.system(size: 11))
+                                            Text(option.label).font(ContinuoTheme.rounded(12, weight: frequency == option ? .semibold : .regular))
+                                        }
+                                        .foregroundColor(frequency == option ? ContinuoTheme.olive : ContinuoTheme.textMedium)
+                                        .padding(.horizontal, 14).padding(.vertical, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(frequency == option
+                                                      ? ContinuoTheme.olive.opacity(0.10)
+                                                      : Color.white.opacity(0.6))
+                                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(frequency == option
+                                                            ? ContinuoTheme.olive.opacity(0.4)
+                                                            : Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 1)
+                        }
+                    }
+
                     // Expiry
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle(isOn: $hasExpiry) {
@@ -216,7 +252,8 @@ struct SendAssignmentView: View {
             lastCompletedAt: nil,
             completionCount: 0,
             createdAt: Date(),
-            competencyId: selectedCompetencyId
+            competencyId: selectedCompetencyId,
+            frequency: frequency
         )
         do {
             try AssignmentService.shared.sendAssignment(assignment)

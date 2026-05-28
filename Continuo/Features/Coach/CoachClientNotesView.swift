@@ -52,7 +52,7 @@ struct CoachClientNotesView: View {
                                 .padding(.bottom, 16)
                             }
                             .scrollDismissesKeyboard(.interactively)
-                            .onChange(of: entries.count) { _ in
+                            .onChange(of: entries.count) {
                                 withAnimation(.easeOut(duration: 0.3)) {
                                     proxy.scrollTo("scrollBottom", anchor: .bottom)
                                 }
@@ -160,9 +160,10 @@ struct CoachClientNotesView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.caption)
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(ContinuoTheme.textLight)
-                            .padding(6)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Rectangle())
                     }
                 }
 
