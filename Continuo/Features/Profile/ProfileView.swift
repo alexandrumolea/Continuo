@@ -285,6 +285,13 @@ struct ProfileView: View {
                     HapticFeedback.selection()
                     openSupportEmail()
                 }
+                Divider().padding(.leading, 52).opacity(0.3)
+                actionRow(icon: "hand.raised.fill", color: ContinuoTheme.textMedium, label: "Privacy Policy") {
+                    HapticFeedback.selection()
+                    if let url = URL(string: "https://alexandrumolea.github.io/Continuo/") {
+                        UIApplication.shared.open(url)
+                    }
+                }
             }
         }
     }

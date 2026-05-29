@@ -72,10 +72,27 @@ struct AuthView: View {
                     }
                     .padding(.horizontal, 24)
                     .disabled(auth.isLoading)
+
+                    privacyFooter
                 }
                 .padding(.bottom, 48)
             }
         }
+    }
+
+    // MARK: - Privacy footer
+    private var privacyFooter: some View {
+        VStack(spacing: 4) {
+            Text("By continuing you agree to our")
+                .font(ContinuoTheme.rounded(11))
+                .foregroundColor(ContinuoTheme.textLight)
+            Link("Privacy Policy",
+                 destination: URL(string: "https://alexandrumolea.github.io/Continuo/")!)
+                .font(ContinuoTheme.rounded(12, weight: .semibold))
+                .foregroundColor(ContinuoTheme.terracotta)
+        }
+        .padding(.top, 16)
+        .padding(.horizontal, 24)
     }
 
     // MARK: - Logo
