@@ -43,6 +43,17 @@ final class DailyPracticeService {
             }
     }
 
+    // MARK: - Live mindfulness minutes today (drives the home card subtitle)
+    func mindfulnessTodayListener(userId: String, onChange: @escaping (Int) -> Void) -> ListenerRegistration {
+        let today = todayKey()
+        return db.collection("users").document(userId)
+            .collection("dailyCompletions")
+            .document("mindfulness_\(today)")
+            .addSnapshotListener { snap, _ in
+                onChange((snap?.data()?["minutes"] as? Int) ?? 0)
+            }
+    }
+
     // MARK: - Delete a daily completion (reactivates the card for that day)
     func deleteCompletion(userId: String, practiceId: String, date: Date) async throws {
         let key = dateKey(from: date)
@@ -71,6 +82,82 @@ final class DailyPracticeService {
         batch.updateData(["responses": responses], forDocument: completionRef)
 
         batch.commit()
+    }
+
+    // MARK: - Mindfulness — tiered GP (3 GP at ≥5 min, 5 GP at ≥10 min)
+
+    /// Updates today's mindfulness minutes total and awards the GP delta (if any).
+    /// Idempotent: minutes can only increase, GP is only awarded once per tier.
+    /// Returns the GP delta awarded by this call.
+    @discardableResult
+    func updateMindfulnessTotal(userId: String, minutesToday: Int) async throws -> Int {
+        let today = todayKey()
+        let docRef = db.collection("users").document(userId)
+            .collection("dailyCompletions")
+            .document("mindfulness_\(today)")
+
+        let snap = try await docRef.getDocument()
+        let currentMinutes = (snap.data()?["minutes"] as? Int) ?? 0
+        let currentGP = (snap.data()?["gpAwarded"] as? Int) ?? 0
+
+        let newMinutes = max(currentMinutes, minutesToday)
+        // Don't create empty docs (avoid marking the home card as completed when nothing was logged)
+        guard newMinutes > 0 else { return 0 }
+        let newGP: Int = {
+            if newMinutes >= 10 { return 5 }
+            if newMinutes >= 5  { return 3 }
+            return 0
+        }()
+        let gpDelta = newGP - currentGP
+
+        // Persist updated state
+        let data: [String: Any] = [
+            "practiceId":    "mindfulness",
+            "practiceTitle": "Mindfulness",
+            "minutes":       newMinutes,
+            "gpAwarded":     newGP,
+            "dateKey":       today,
+            "completedAt":   Timestamp(date: Date())
+        ]
+        if snap.exists {
+            try await docRef.updateData(data)
+        } else {
+            try await docRef.setData(data)
+        }
+
+        guard gpDelta > 0 else { return 0 }
+
+        // Award GP on user profile
+        try await db.collection("users").document(userId).updateData([
+            "totalGP": FieldValue.increment(Int64(gpDelta))
+        ])
+
+        // Journey event for this milestone
+        let subtitle = newGP == 5
+            ? "\(newMinutes) min · daily goal reached 🌿"
+            : "\(newMinutes) min · keep going"
+        let event = JourneyEvent(
+            userId: userId,
+            type: .dailyPracticeCompleted,
+            title: "🧘 Mindfulness",
+            subtitle: subtitle,
+            gpEarned: gpDelta,
+            createdAt: Date(),
+            practiceId: "mindfulness",
+            responses: nil
+        )
+        try db.collection("journeyEvents").addDocument(from: event)
+
+        // Award competency points (fire-and-forget)
+        if let competencyId = (DailyPractice.catalog.first { $0.id == "mindfulness" })?.competencyId {
+            Task {
+                try? await CompetencyService.shared.addPoints(
+                    userId: userId, competencyId: competencyId, points: gpDelta
+                )
+            }
+        }
+
+        return gpDelta
     }
 
     // MARK: - Complete a practice (idempotent — doc ID includes date, so re-submitting same day overwrites)

@@ -61,6 +61,12 @@ struct HomeView: View {
                             userId: auth.firebaseUser?.uid ?? "",
                             onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
+                    } else if practice.id == "mindfulness" {
+                        MindfulnessDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
                     } else if practice.id == "releasing" {
                         ReleasingDetailView(
                             practice: practice,
@@ -224,11 +230,13 @@ struct HomeView: View {
                     ForEach(DailyPractice.catalog) { practice in
                         DailyPracticeCard(
                             practice: practice,
-                            isCompleted: vm.completedPracticeIds.contains(practice.id)
+                            isCompleted: vm.completedPracticeIds.contains(practice.id),
+                            mindfulnessMinutes: practice.id == "mindfulness" ? vm.mindfulnessMinutesToday : nil
                         ) {
-                            // activate_sage can be done unlimited times per day
+                            // activate_sage and mindfulness are open-ended — always tappable
                             let isDone = vm.completedPracticeIds.contains(practice.id)
-                            if !isDone || practice.id == "activate_sage" {
+                            let isOpenEnded = practice.id == "activate_sage" || practice.id == "mindfulness"
+                            if !isDone || isOpenEnded {
                                 selectedPractice = practice
                             }
                         }
@@ -549,7 +557,12 @@ struct GoalCard: View {
 struct DailyPracticeCard: View {
     let practice: DailyPractice
     let isCompleted: Bool
+    var mindfulnessMinutes: Int? = nil
     let onTap: () -> Void
+
+    /// Mindfulness is open-ended — never wash it out, the user is welcome to keep going.
+    private var washedOut: Bool { mindfulnessMinutes == nil && isCompleted }
+    private var hasMindfulnessProgress: Bool { (mindfulnessMinutes ?? 0) > 0 }
 
     var body: some View {
         Button(action: onTap) {
@@ -567,7 +580,7 @@ struct DailyPracticeCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if isCompleted {
+                    if isCompleted || hasMindfulnessProgress {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 18))
                             .foregroundColor(ContinuoTheme.olive)
@@ -577,18 +590,34 @@ struct DailyPracticeCard: View {
 
                 Spacer(minLength: 12)
 
-                // Prompt preview
-                Text(practice.prompts.first ?? "")
-                    .font(ContinuoTheme.rounded(12))
-                    .foregroundColor(ContinuoTheme.charcoal.opacity(isCompleted ? 0.4 : 0.65))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Subtitle — mindfulness shows live minutes, the rest show their prompt preview
+                if let min = mindfulnessMinutes, min > 0 {
+                    HStack(spacing: 4) {
+                        Text("\(min)")
+                            .font(ContinuoTheme.rounded(20, weight: .bold))
+                            .foregroundColor(practice.categoryColor)
+                        Text("min today")
+                            .font(ContinuoTheme.rounded(12, weight: .medium))
+                            .foregroundColor(ContinuoTheme.charcoal.opacity(0.7))
+                    }
+                } else {
+                    Text(practice.prompts.first ?? "")
+                        .font(ContinuoTheme.rounded(12))
+                        .foregroundColor(ContinuoTheme.charcoal.opacity(washedOut ? 0.4 : 0.65))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Spacer(minLength: 16)
 
                 // Footer
                 HStack(spacing: 8) {
-                    if isCompleted {
+                    if mindfulnessMinutes != nil {
+                        // For mindfulness, show "Tap to log more" — never "Completed"
+                        Text(hasMindfulnessProgress ? "Tap to log more" : "Today")
+                            .font(ContinuoTheme.rounded(11, weight: hasMindfulnessProgress ? .semibold : .regular))
+                            .foregroundColor(hasMindfulnessProgress ? practice.categoryColor : ContinuoTheme.charcoal.opacity(0.5))
+                    } else if isCompleted {
                         Text("Completed")
                             .font(ContinuoTheme.rounded(11, weight: .semibold))
                             .foregroundColor(ContinuoTheme.olive)
@@ -614,7 +643,7 @@ struct DailyPracticeCard: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(
-                                isCompleted
+                                washedOut
                                     ? ContinuoTheme.olive.opacity(0.25)
                                     : practice.categoryColor.opacity(0.18),
                                 lineWidth: 1
@@ -623,9 +652,9 @@ struct DailyPracticeCard: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.white.opacity(isCompleted ? 0.35 : 0))
+                    .fill(Color.white.opacity(washedOut ? 0.35 : 0))
             )
-            .shadow(color: Color(hex: "2D2926").opacity(isCompleted ? 0.02 : 0.06), radius: 8, y: 3)
+            .shadow(color: Color(hex: "2D2926").opacity(washedOut ? 0.02 : 0.06), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
     }

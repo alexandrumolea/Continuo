@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct AuthView: View {
     @StateObject private var vm = AuthViewModel()
@@ -35,6 +36,21 @@ struct AuthView: View {
                         Rectangle().fill(ContinuoTheme.charcoal.opacity(0.15)).frame(height: 1)
                     }
                     .padding(.horizontal, 24)
+
+                    // Apple button (native, system-styled)
+                    SignInWithAppleButton(
+                        vm.isLoginMode ? .signIn : .signUp,
+                        onRequest: { request in auth.prepareAppleRequest(request) },
+                        onCompletion: { result in
+                            Task { await auth.handleAppleCompletion(result) }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 52)
+                    .cornerRadius(16)
+                    .shadow(color: ContinuoTheme.charcoal.opacity(0.18), radius: 10, x: 0, y: 5)
+                    .padding(.horizontal, 24)
+                    .disabled(auth.isLoading)
 
                     // Facebook button
                     Button {

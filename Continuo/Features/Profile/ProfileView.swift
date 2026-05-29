@@ -4,6 +4,8 @@ import FirebaseAuth
 struct ProfileView: View {
     @EnvironmentObject private var auth: AuthService
     @State private var showSignOutAlert = false
+    @State private var showEditName = false
+    @State private var showDeleteAccount = false
 
     // Client: coach connection
     @State private var coachCodeInput = ""
@@ -26,6 +28,7 @@ struct ProfileView: View {
                         coachSection          // role-dependent card
                         actionsCard
                         signOutButton
+                        deleteAccountButton
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
@@ -39,6 +42,16 @@ struct ProfileView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to sign out?")
+            }
+            .sheet(isPresented: $showEditName) {
+                EditDisplayNameSheet()
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showDeleteAccount) {
+                DeleteAccountSheet()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -250,9 +263,14 @@ struct ProfileView: View {
     private var actionsCard: some View {
         GlassCard(padding: 0) {
             VStack(spacing: 0) {
+                actionRow(icon: "person.fill", color: ContinuoTheme.terracotta, label: "Edit name") {
+                    HapticFeedback.selection()
+                    showEditName = true
+                }
+                Divider().padding(.leading, 52).opacity(0.3)
                 actionRow(icon: "bell.fill", color: ContinuoTheme.sunOrange, label: "Notifications") {}
                 Divider().padding(.leading, 52).opacity(0.3)
-                actionRow(icon: "lock.fill", color: ContinuoTheme.terracotta, label: "Change Password") {}
+                actionRow(icon: "lock.fill", color: Color(hex: "7B5EA7"), label: "Change Password") {}
                 Divider().padding(.leading, 52).opacity(0.3)
                 actionRow(icon: "questionmark.circle.fill", color: ContinuoTheme.olive, label: "Help & Support") {}
             }
@@ -276,6 +294,24 @@ struct ProfileView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.red.opacity(0.2), lineWidth: 1))
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Delete account (App Store guideline 5.1.1(v))
+    private var deleteAccountButton: some View {
+        Button {
+            HapticFeedback.medium()
+            showDeleteAccount = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                    .font(.system(size: 12))
+                Text("Delete account")
+                    .font(ContinuoTheme.rounded(13, weight: .medium))
+            }
+            .foregroundColor(ContinuoTheme.textLight)
+            .padding(.vertical, 10).padding(.horizontal, 14)
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - Helpers

@@ -2,7 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- App identity -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -19,10 +18,6 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
-
-	<!-- URL schemes: Facebook + Google (Firebase) -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -38,8 +33,8 @@
 			</array>
 		</dict>
 	</array>
-
-	<!-- Facebook -->
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>FacebookAppID</key>
 	<string>1352521236729575</string>
 	<key>FacebookClientToken</key>
@@ -53,8 +48,10 @@
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
 	</array>
-
-	<!-- iOS required -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Continuo reads your mindful minutes from Apple Health so your meditation practice from other apps (Calm, Apple Watch, etc.) counts toward your daily mindfulness goal.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Continuo writes your meditation sessions to Apple Health so they appear alongside your other health data and reach other apps that read mindful minutes.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

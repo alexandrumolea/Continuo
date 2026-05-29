@@ -7,12 +7,14 @@ final class HomeViewModel: ObservableObject {
     @Published var events: [JourneyEvent] = []
     @Published var assignments: [Assignment] = []
     @Published var completedPracticeIds: Set<String> = []
+    @Published var mindfulnessMinutesToday: Int = 0
     @Published var goals: [Goal] = []
     @Published var coachingSessions: [CoachingSession] = []
 
     private var journeyReg: ListenerRegistration?
     private var assignmentReg: ListenerRegistration?
     private var practiceReg: ListenerRegistration?
+    private var mindfulnessReg: ListenerRegistration?
     private var goalReg: ListenerRegistration?
     private var sessionsReg: ListenerRegistration?
     private var activeUserId: String?
@@ -36,6 +38,11 @@ final class HomeViewModel: ObservableObject {
             if isClient && practiceReg == nil {
                 practiceReg = DailyPracticeService.shared.completedTodayListener(userId: userId) { [weak self] in
                     self?.completedPracticeIds = $0
+                }
+            }
+            if isClient && mindfulnessReg == nil {
+                mindfulnessReg = DailyPracticeService.shared.mindfulnessTodayListener(userId: userId) { [weak self] in
+                    self?.mindfulnessMinutesToday = $0
                 }
             }
             if isClient && sessionsReg == nil {
@@ -63,6 +70,10 @@ final class HomeViewModel: ObservableObject {
             practiceReg = DailyPracticeService.shared.completedTodayListener(userId: userId) { [weak self] in
                 self?.completedPracticeIds = $0
             }
+            mindfulnessReg?.remove()
+            mindfulnessReg = DailyPracticeService.shared.mindfulnessTodayListener(userId: userId) { [weak self] in
+                self?.mindfulnessMinutesToday = $0
+            }
             sessionsReg?.remove()
             sessionsReg = CoachingSessionService.shared.sessionsListener(userId: userId) { [weak self] in
                 self?.coachingSessions = $0
@@ -81,6 +92,7 @@ final class HomeViewModel: ObservableObject {
         journeyReg?.remove()
         assignmentReg?.remove()
         practiceReg?.remove()
+        mindfulnessReg?.remove()
         goalReg?.remove()
         sessionsReg?.remove()
     }

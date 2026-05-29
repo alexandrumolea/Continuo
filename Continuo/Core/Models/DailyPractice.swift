@@ -52,6 +52,19 @@ struct DailyPractice: Identifiable {
             competencyId: "inner_harmony"
         ),
         DailyPractice(
+            id: "mindfulness",
+            title: "Mindfulness",
+            emoji: "🧘",
+            category: "Presence",
+            categoryColor: Color(hex: "5B9FA8"),
+            cardColor: Color(hex: "E8F2F4"),
+            // First prompt is the home-card preview; the detail view (MindfulnessDetailView)
+            // ignores `prompts` entirely and shows a timer + manual log + Health sync.
+            prompts: ["Take a mindful pause and notice your breath."],
+            gpReward: 5,
+            competencyId: "inner_harmony"
+        ),
+        DailyPractice(
             id: "achievements_inventory",
             title: "Today's Achievements",
             emoji: "🌟",
