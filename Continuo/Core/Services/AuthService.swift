@@ -58,6 +58,17 @@ final class AuthService: ObservableObject {
         isLoading = false
     }
 
+    // MARK: - Password reset (email magic link)
+    /// Sends a Firebase password-reset email. Throws on invalid email / network errors.
+    func sendPasswordReset(email: String) async throws {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw NSError(domain: "PasswordReset", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Please enter your email first."])
+        }
+        try await Auth.auth().sendPasswordReset(withEmail: trimmed)
+    }
+
     // MARK: - Sign Up
     func signUp(email: String, password: String, displayName: String, role: UserRole) async {
         isLoading = true

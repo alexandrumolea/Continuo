@@ -6,6 +6,7 @@ struct ProfileView: View {
     @State private var showSignOutAlert = false
     @State private var showEditName = false
     @State private var showDeleteAccount = false
+    @State private var passwordResetAlert: PasswordResetAlert? = nil
 
     // Client: coach connection
     @State private var coachCodeInput = ""
@@ -52,6 +53,11 @@ struct ProfileView: View {
                 DeleteAccountSheet()
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
+            }
+            .alert(item: $passwordResetAlert) { alert in
+                Alert(title: Text(alert.title),
+                      message: Text(alert.message),
+                      dismissButton: .default(Text("OK")))
             }
         }
     }
@@ -270,9 +276,15 @@ struct ProfileView: View {
                 Divider().padding(.leading, 52).opacity(0.3)
                 actionRow(icon: "bell.fill", color: ContinuoTheme.sunOrange, label: "Notifications") {}
                 Divider().padding(.leading, 52).opacity(0.3)
-                actionRow(icon: "lock.fill", color: Color(hex: "7B5EA7"), label: "Change Password") {}
+                actionRow(icon: "lock.fill", color: Color(hex: "7B5EA7"), label: "Change Password") {
+                    HapticFeedback.selection()
+                    handleChangePassword()
+                }
                 Divider().padding(.leading, 52).opacity(0.3)
-                actionRow(icon: "questionmark.circle.fill", color: ContinuoTheme.olive, label: "Help & Support") {}
+                actionRow(icon: "questionmark.circle.fill", color: ContinuoTheme.olive, label: "Help & Support") {
+                    HapticFeedback.selection()
+                    openSupportEmail()
+                }
             }
         }
     }
@@ -393,6 +405,77 @@ struct ProfileView: View {
         .padding(.vertical, 6)
     }
 
+    // MARK: - Change Password / Help & Support actions
+
+    /// Email/password users get a Firebase reset link. Social-auth users (Apple/Facebook)
+    /// can't change a password in our app — direct them to their identity provider.
+    private func handleChangePassword() {
+        let provider = auth.primaryProviderId ?? "password"
+        switch provider {
+        case "password":
+            guard let email = auth.profile?.email, !email.isEmpty else {
+                passwordResetAlert = PasswordResetAlert(
+                    title: "No email on file",
+                    message: "We can't send a reset link without a saved email address."
+                )
+                return
+            }
+            Task {
+                do {
+                    try await auth.sendPasswordReset(email: email)
+                    passwordResetAlert = PasswordResetAlert(
+                        title: "Check your inbox",
+                        message: "We sent a password reset link to \(email)."
+                    )
+                } catch {
+                    passwordResetAlert = PasswordResetAlert(
+                        title: "Couldn't send reset",
+                        message: error.localizedDescription
+                    )
+                }
+            }
+        case "apple.com":
+            passwordResetAlert = PasswordResetAlert(
+                title: "Managed by Apple",
+                message: "You signed in with Apple — your password is managed in Settings → Apple ID."
+            )
+        case "facebook.com":
+            passwordResetAlert = PasswordResetAlert(
+                title: "Managed by Facebook",
+                message: "You signed in with Facebook — change your password in the Facebook app or facebook.com/settings."
+            )
+        default:
+            passwordResetAlert = PasswordResetAlert(
+                title: "Can't change password",
+                message: "Your account is managed by your identity provider."
+            )
+        }
+    }
+
+    private func openSupportEmail() {
+        let address = "alexandru.molea@bemore.ro"
+        let subject = "Continuo Support"
+        let bodyLines = [
+            "",
+            "—",
+            "App: Continuo",
+            "User: \(auth.profile?.displayName ?? "—")",
+            "Role: \(auth.profile?.role.displayName ?? "—")"
+        ]
+        let body = bodyLines.joined(separator: "\n")
+
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = address
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        if let url = components.url {
+            UIApplication.shared.open(url)
+        }
+    }
+
     private func actionRow(icon: String, color: Color, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
@@ -413,6 +496,14 @@ struct ProfileView: View {
             .padding(.horizontal, 16)
         }
     }
+}
+
+// MARK: - Alert model
+
+private struct PasswordResetAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
 }
 
 #Preview {

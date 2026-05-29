@@ -4,6 +4,8 @@ import AuthenticationServices
 struct AuthView: View {
     @StateObject private var vm = AuthViewModel()
     @EnvironmentObject private var auth: AuthService
+    @State private var resetMessage: String?
+    @State private var resetWasSuccessful = false
 
     var body: some View {
         ZStack {
@@ -145,11 +147,55 @@ struct AuthView: View {
             AuthField(icon: "envelope.fill",  placeholder: "Email",          text: $vm.email, keyboard: .emailAddress)
             AuthField(icon: "lock.fill",       placeholder: "Password",       text: $vm.password, isSecure: true)
 
+            if vm.isLoginMode {
+                forgotPasswordRow
+            }
+
             if !vm.isLoginMode {
                 roleSelector
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    // MARK: - Forgot password
+    private var forgotPasswordRow: some View {
+        HStack(spacing: 6) {
+            Spacer()
+            if let msg = resetMessage {
+                Image(systemName: resetWasSuccessful ? "checkmark.circle.fill" : "exclamationmark.circle")
+                    .font(.caption)
+                    .foregroundColor(resetWasSuccessful ? ContinuoTheme.olive : .red)
+                Text(msg)
+                    .font(ContinuoTheme.rounded(12))
+                    .foregroundColor(resetWasSuccessful ? ContinuoTheme.olive : .red)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.trailing)
+            } else {
+                Button {
+                    HapticFeedback.selection()
+                    Task { await sendResetEmail() }
+                } label: {
+                    Text("Forgot password?")
+                        .font(ContinuoTheme.rounded(12, weight: .medium))
+                        .foregroundColor(ContinuoTheme.terracotta)
+                }
+            }
+        }
+    }
+
+    private func sendResetEmail() async {
+        do {
+            try await auth.sendPasswordReset(email: vm.email)
+            resetWasSuccessful = true
+            resetMessage = "Reset link sent."
+        } catch {
+            resetWasSuccessful = false
+            resetMessage = error.localizedDescription
+        }
+        // Auto-clear the inline status after 4s so the user can try again.
+        try? await Task.sleep(nanoseconds: 4_000_000_000)
+        await MainActor.run { resetMessage = nil }
     }
 
     // MARK: - Role selector
