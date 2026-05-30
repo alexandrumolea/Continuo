@@ -2,9 +2,11 @@ import Foundation
 import Combine
 import FirebaseAuth
 import FirebaseFirestore
-import FacebookLogin
+import FirebaseCore
+import GoogleSignIn
 import AuthenticationServices
 import CryptoKit
+import UIKit
 
 @MainActor
 final class AuthService: ObservableObject {
@@ -76,12 +78,14 @@ final class AuthService: ObservableObject {
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
             let uid = result.user.uid
+            // Email signup collects name + role in the form, so setup is already complete.
             let newUser = ContinuoUser(
                 displayName: displayName,
                 email: email,
                 role: role,
                 coachId: nil,
-                totalGP: 0
+                totalGP: 0,
+                setupCompleted: true
             )
             try db.collection("users").document(uid).setData(from: newUser)
         } catch let error as NSError {
@@ -105,52 +109,72 @@ final class AuthService: ObservableObject {
         }
     }
 
-    // MARK: - Facebook Sign In
-    func signInWithFacebook() async {
+    // MARK: - Google Sign In
+
+    func signInWithGoogle() async {
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
 
         do {
-            let token = try await facebookAccessToken()
-            let credential = FacebookAuthProvider.credential(withAccessToken: token)
-            let result = try await Auth.auth().signIn(with: credential)
-            let uid = result.user.uid
+            guard let clientID = FirebaseApp.app()?.options.clientID else {
+                throw NSError(domain: "GoogleAuth", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Missing Google client ID."])
+            }
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
 
-            // Create profile if new user
+            guard let rootVC = Self.topPresentingViewController() else {
+                throw NSError(domain: "GoogleAuth", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Could not find a presenter."])
+            }
+
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw NSError(domain: "GoogleAuth", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Missing Google ID token."])
+            }
+            let accessToken = result.user.accessToken.tokenString
+
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken,
+                                                           accessToken: accessToken)
+            let signInResult = try await Auth.auth().signIn(with: credential)
+            let uid = signInResult.user.uid
+
+            // Create profile if this is a new Firebase user.
             let doc = try await db.collection("users").document(uid).getDocument()
             if !doc.exists {
-                let name = result.user.displayName ?? "User"
-                let email = result.user.email ?? ""
-                let newUser = ContinuoUser(displayName: name, email: email, role: .client, coachId: nil, totalGP: 0)
+                let name = result.user.profile?.name
+                    ?? signInResult.user.displayName
+                    ?? "User"
+                let email = result.user.profile?.email
+                    ?? signInResult.user.email
+                    ?? ""
+                // setupCompleted: false → WelcomeSetupView appears so the user picks role.
+                let newUser = ContinuoUser(displayName: name, email: email,
+                                           role: .client, coachId: nil, totalGP: 0,
+                                           setupCompleted: false)
                 try db.collection("users").document(uid).setData(from: newUser)
             }
         } catch {
+            // GoogleSignIn raises this code when the user dismisses the sheet.
+            let nsError = error as NSError
+            if nsError.domain == "com.google.GIDSignIn", nsError.code == -5 {
+                return
+            }
             errorMessage = error.localizedDescription
-            print("❌ Facebook SignIn error: \(error)")
+            print("❌ Google SignIn error: \(error)")
         }
-        isLoading = false
     }
 
-    private func facebookAccessToken() async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            let manager = LoginManager()
-            manager.logIn(permissions: ["email", "public_profile"], from: nil) { result, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let result, !result.isCancelled,
-                      let token = result.token?.tokenString else {
-                    continuation.resume(throwing: NSError(
-                        domain: "FacebookAuth",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "Facebook login cancelled"]
-                    ))
-                    return
-                }
-                continuation.resume(returning: token)
-            }
-        }
+    /// Walks the connected scenes to find the top-most view controller to present from.
+    private static func topPresentingViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        guard let window = scenes.first?.windows.first(where: { $0.isKeyWindow }) ?? scenes.first?.windows.first,
+              var top = window.rootViewController else { return nil }
+        while let presented = top.presentedViewController { top = presented }
+        return top
     }
 
     // MARK: - Apple Sign In
@@ -203,8 +227,10 @@ final class AuthService: ObservableObject {
                     ? nameParts
                     : (result.user.displayName ?? "User")
                 let email = credential.email ?? result.user.email ?? ""
+                // setupCompleted: false → WelcomeSetupView appears so the user picks role.
                 let newUser = ContinuoUser(displayName: displayName, email: email,
-                                           role: .client, coachId: nil, totalGP: 0)
+                                           role: .client, coachId: nil, totalGP: 0,
+                                           setupCompleted: false)
                 try db.collection("users").document(uid).setData(from: newUser)
             }
 
@@ -226,21 +252,32 @@ final class AuthService: ObservableObject {
         firebaseUser?.providerData.first?.providerID
     }
 
-    /// Wipes all user data, revokes the Apple token if applicable, and deletes the Firebase user.
+    /// Wipes all user data, revokes provider-specific tokens, and deletes the Firebase user.
     /// Must be called with a *fresh* credential (Firebase requires recent login for delete).
     func deleteAccount(appleAuthorizationCode: String? = nil) async throws {
         guard let user = firebaseUser, let uid = user.uid as String? else {
             throw NSError(domain: "DeleteAccount", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: "Not signed in."])
         }
+        let provider = primaryProviderId
 
         // 1. Wipe Firestore data while we still have read/write permission.
         await AccountDeletionService.shared.wipeAllUserData(uid: uid)
 
-        // 2. For Sign in with Apple users, revoke the token — required by App Review 5.1.1(v).
-        //    Quietly skipped if no auth code is available; the user account is still deleted.
+        // 2a. For Sign in with Apple users, revoke the token — required by App Review 5.1.1(v).
+        //     Quietly skipped if no auth code is available; the user account is still deleted.
         if let code = appleAuthorizationCode {
             try? await Auth.auth().revokeToken(withAuthorizationCode: code)
+        }
+
+        // 2b. For Google users, disconnect the OAuth grant so Google no longer remembers
+        //     this app on the "Sign in with Google" sheet.
+        if provider == "google.com" {
+            do {
+                try await GIDSignIn.sharedInstance.disconnect()
+            } catch {
+                print("⚠️ Google disconnect failed: \(error)")
+            }
         }
 
         // 3. Delete the Firebase Auth user.
@@ -295,7 +332,7 @@ final class AuthService: ObservableObject {
 
     // MARK: - Sign Out
     func signOut() {
-        LoginManager().logOut()
+        GIDSignIn.sharedInstance.signOut()
         try? Auth.auth().signOut()
     }
 
@@ -335,10 +372,15 @@ final class AuthService: ObservableObject {
                 Task { @MainActor in
                     let profile = try? snapshot?.data(as: ContinuoUser.self)
                     self?.profile = profile
-                    let name = profile?.displayName.trimmingCharacters(in: .whitespaces) ?? ""
-                    // Any social-auth profile that still carries the "User" placeholder
-                    // (or no name at all) needs to finish the welcome flow.
-                    self?.needsProfileSetup = profile != nil && (name.isEmpty || name == "User")
+                    guard let profile else {
+                        self?.needsProfileSetup = false
+                        return
+                    }
+                    let name = profile.displayName.trimmingCharacters(in: .whitespaces)
+                    let placeholderName = name.isEmpty || name == "User"
+                    // Explicit flag (social-auth new users) OR fallback placeholder check
+                    // (covers Apple users with "User" name from older runs).
+                    self?.needsProfileSetup = (profile.setupCompleted == false) || placeholderName
                 }
             }
     }
@@ -353,7 +395,8 @@ final class AuthService: ObservableObject {
         do {
             try await db.collection("users").document(uid).updateData([
                 "displayName": trimmed,
-                "role": role.rawValue
+                "role": role.rawValue,
+                "setupCompleted": true
             ])
             // Listener will re-fire and flip needsProfileSetup to false.
         } catch {

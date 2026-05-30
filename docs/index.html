@@ -108,6 +108,8 @@
 </head>
 <body>
   <nav class="nav">
+    <a href="./terms/">Terms of Service</a>
+    <a href="./data-deletion/">Delete Data</a>
     <a href="#contact">Contact</a>
   </nav>
 
@@ -140,7 +142,7 @@
     <ul>
       <li><strong>If you sign up with email and password:</strong> your email address and a hashed password (passwords are stored only by Firebase Authentication — we never see them in clear text).</li>
       <li><strong>If you sign in with Apple:</strong> a unique user identifier and, if you choose to share them, your name and email (or Apple's private relay address).</li>
-      <li><strong>If you sign in with Facebook:</strong> your name, email address, and public profile data that Facebook returns to apps using Facebook Login.</li>
+      <li><strong>If you sign in with Google:</strong> your name, email address, and Google profile ID returned to apps using Google Sign-In.</li>
       <li><strong>Profile information:</strong> your chosen display name and role (client or coach).</li>
     </ul>
 
@@ -190,7 +192,7 @@
       the app's features, or selling to third parties.
     </p>
 
-    <h2>4. Who has access to your data</h2>
+    <h2 id="sec-providers">4. Who has access to your data</h2>
 
     <h3>4.1 You</h3>
     <p>You have access to all of your data via the app. You can view, edit
@@ -220,9 +222,11 @@
         <a href="https://www.apple.com/legal/privacy/">Apple privacy policy</a>.
       </li>
       <li>
-        <strong>Meta (Facebook):</strong> processes Facebook Login only if you
-        choose that sign-in method.
-        <a href="https://www.facebook.com/privacy/policy/">Meta privacy policy</a>.
+        <strong>Google (Google Sign-In):</strong> handles authentication only if
+        you choose to sign in with your Google account. Note that Firebase is
+        also a Google service — when you use Google Sign-In, only one company
+        ultimately processes that data.
+        <a href="https://policies.google.com/privacy">Google privacy policy</a>.
       </li>
     </ul>
 

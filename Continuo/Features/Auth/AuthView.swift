@@ -54,21 +54,27 @@ struct AuthView: View {
                     .padding(.horizontal, 24)
                     .disabled(auth.isLoading)
 
-                    // Facebook button
+                    // Google button (white background per Google branding guidelines)
                     Button {
-                        Task { await auth.signInWithFacebook() }
+                        Task { await auth.signInWithGoogle() }
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "f.square.fill")
+                            Image(systemName: "g.circle.fill")
                                 .font(.title3)
-                            Text("Continue with Facebook")
+                                .foregroundColor(Color(hex: "EA4335"))
+                            Text("Continue with Google")
                                 .font(ContinuoTheme.rounded(16, weight: .semibold))
+                                .foregroundColor(Color(hex: "3C4043"))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: "1877F2")))
-                        .foregroundColor(.white)
-                        .shadow(color: Color(hex: "1877F2").opacity(0.4), radius: 10, x: 0, y: 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white)
+                                .overlay(RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color(hex: "DADCE0"), lineWidth: 1))
+                        )
+                        .shadow(color: ContinuoTheme.charcoal.opacity(0.12), radius: 8, x: 0, y: 3)
                     }
                     .padding(.horizontal, 24)
                     .disabled(auth.isLoading)
@@ -82,14 +88,19 @@ struct AuthView: View {
 
     // MARK: - Privacy footer
     private var privacyFooter: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Text("By continuing you agree to our")
                 .font(ContinuoTheme.rounded(11))
                 .foregroundColor(ContinuoTheme.textLight)
-            Link("Privacy Policy",
-                 destination: URL(string: "https://alexandrumolea.github.io/Continuo/")!)
-                .font(ContinuoTheme.rounded(12, weight: .semibold))
-                .foregroundColor(ContinuoTheme.terracotta)
+            HStack(spacing: 14) {
+                Link("Terms of Service",
+                     destination: URL(string: "https://alexandrumolea.github.io/Continuo/terms/")!)
+                Text("·").foregroundColor(ContinuoTheme.textLight)
+                Link("Privacy Policy",
+                     destination: URL(string: "https://alexandrumolea.github.io/Continuo/")!)
+            }
+            .font(ContinuoTheme.rounded(12, weight: .semibold))
+            .foregroundColor(ContinuoTheme.terracotta)
         }
         .padding(.top, 16)
         .padding(.horizontal, 24)

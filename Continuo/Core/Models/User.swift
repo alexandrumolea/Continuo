@@ -26,8 +26,11 @@ struct ContinuoUser: Identifiable, Codable {
     var role: UserRole
     var coachId: String?
     var totalGP: Int
+    /// `false` for social-auth users until they finish the welcome flow (pick name + role).
+    /// `nil` for legacy profiles created before this field existed — treated as "complete".
+    var setupCompleted: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, displayName, email, role, coachId, totalGP
+        case id, displayName, email, role, coachId, totalGP, setupCompleted
     }
 }

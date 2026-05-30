@@ -292,6 +292,13 @@ struct ProfileView: View {
                         UIApplication.shared.open(url)
                     }
                 }
+                Divider().padding(.leading, 52).opacity(0.3)
+                actionRow(icon: "doc.text.fill", color: ContinuoTheme.textMedium, label: "Terms of Service") {
+                    HapticFeedback.selection()
+                    if let url = URL(string: "https://alexandrumolea.github.io/Continuo/terms/") {
+                        UIApplication.shared.open(url)
+                    }
+                }
             }
         }
     }
@@ -414,7 +421,7 @@ struct ProfileView: View {
 
     // MARK: - Change Password / Help & Support actions
 
-    /// Email/password users get a Firebase reset link. Social-auth users (Apple/Facebook)
+    /// Email/password users get a Firebase reset link. Social-auth users (Apple/Google)
     /// can't change a password in our app — direct them to their identity provider.
     private func handleChangePassword() {
         let provider = auth.primaryProviderId ?? "password"
@@ -446,10 +453,10 @@ struct ProfileView: View {
                 title: "Managed by Apple",
                 message: "You signed in with Apple — your password is managed in Settings → Apple ID."
             )
-        case "facebook.com":
+        case "google.com":
             passwordResetAlert = PasswordResetAlert(
-                title: "Managed by Facebook",
-                message: "You signed in with Facebook — change your password in the Facebook app or facebook.com/settings."
+                title: "Managed by Google",
+                message: "You signed in with Google — change your password at myaccount.google.com/security."
             )
         default:
             passwordResetAlert = PasswordResetAlert(

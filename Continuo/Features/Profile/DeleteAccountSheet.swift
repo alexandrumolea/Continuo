@@ -152,7 +152,7 @@ struct DeleteAccountSheet: View {
     }
 
     /// Branches on provider: Apple gets a native button (handles re-auth + token revocation),
-    /// Facebook re-launches Facebook login, email uses the password field above.
+    /// Google relies on a recent login (typical right after sign in), email uses the password field above.
     @ViewBuilder
     private var actionButton: some View {
         if providerId == "apple.com" {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First-run setup shown after Apple/Facebook sign in (or any time the profile name is missing).
+/// First-run setup shown after Apple/Google sign in (or any time the profile name is missing).
 /// User picks display name + role here — required before they can use the app.
 struct WelcomeSetupView: View {
     @EnvironmentObject private var auth: AuthService

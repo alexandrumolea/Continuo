@@ -7,7 +7,7 @@
 
 import SwiftUI
 import FirebaseCore
-import FacebookCore
+import GoogleSignIn
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -15,7 +15,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
-        ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
         return true
     }
 }
@@ -30,13 +29,8 @@ struct ContinuoApp: App {
             RootView()
                 .environmentObject(authService)
                 .onOpenURL { url in
-                    // Handles Facebook OAuth redirect
-                    ApplicationDelegate.shared.application(
-                        UIApplication.shared,
-                        open: url,
-                        sourceApplication: nil,
-                        annotation: ""
-                    )
+                    // Google Sign-In OAuth redirect
+                    GIDSignIn.sharedInstance.handle(url)
                 }
         }
     }
