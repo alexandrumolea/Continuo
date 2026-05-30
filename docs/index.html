@@ -31,14 +31,89 @@
       margin: 0 auto;
       padding: 48px 24px 96px;
     }
-    .nav {
+    /* Welcome header */
+    .welcome {
+      background: linear-gradient(180deg, #F5EBDB 0%, #FAF6EE 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 24px 44px;
+    }
+    .welcome-inner {
       max-width: 760px;
       margin: 0 auto;
-      padding: 20px 24px 0;
-      font-size: 14px;
-      color: var(--text-medium);
     }
-    .nav a { color: var(--accent); text-decoration: none; }
+    .welcome-eyebrow {
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      margin: 0 0 12px;
+    }
+    .welcome-title {
+      font-size: 32px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 14px;
+      letter-spacing: -0.015em;
+    }
+    .welcome-sub {
+      font-size: 15px;
+      color: var(--text-medium);
+      max-width: 520px;
+      margin: 0 0 28px;
+    }
+    .welcome-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .welcome-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1 1 240px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .welcome-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(45, 41, 38, 0.08);
+    }
+    .welcome-btn span { display: block; }
+    .welcome-btn span strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .welcome-btn span small {
+      font-size: 12px;
+      color: var(--text-light);
+      font-weight: 400;
+    }
+    .welcome-btn-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .welcome-btn-primary {
+      border-color: rgba(110, 68, 60, 0.25);
+    }
+    .welcome-btn-primary:hover { border-color: var(--accent); }
+    .welcome-btn-danger {
+      border-color: rgba(178, 59, 42, 0.18);
+    }
+    .welcome-btn-danger:hover { border-color: rgba(178, 59, 42, 0.5); }
+    @media (max-width: 520px) {
+      .welcome { padding: 40px 22px 32px; }
+      .welcome-title { font-size: 26px; }
+      .welcome-btn { flex: 1 1 100%; }
+    }
     h1 {
       font-size: 36px;
       line-height: 1.2;
@@ -103,19 +178,40 @@
         --card: #2A241D;
       }
       code { background: #3A332B; }
+      .welcome {
+        background: linear-gradient(180deg, #2A241D 0%, #1F1B17 100%);
+      }
     }
   </style>
 </head>
 <body>
-  <nav class="nav">
-    <a href="./terms/">Terms of Service</a>
-    <a href="./data-deletion/">Delete Data</a>
-    <a href="#contact">Contact</a>
-  </nav>
+  <header class="welcome">
+    <div class="welcome-inner">
+      <p class="welcome-eyebrow">Continuo</p>
+      <h2 class="welcome-title">Welcome to Continuo<br>and thank you for being with us.</h2>
+      <p class="welcome-sub">Read about how we handle your data, the terms you agree to, and how to delete your account at any time.</p>
+      <div class="welcome-actions">
+        <a class="welcome-btn welcome-btn-primary" href="./terms/">
+          <span class="welcome-btn-icon">📄</span>
+          <span>
+            <strong>Terms of Service</strong>
+            <small>Your agreement with Continuo</small>
+          </span>
+        </a>
+        <a class="welcome-btn welcome-btn-danger" href="./data-deletion/">
+          <span class="welcome-btn-icon">🗑️</span>
+          <span>
+            <strong>Delete Account &amp; Data</strong>
+            <small>Step-by-step guide</small>
+          </span>
+        </a>
+      </div>
+    </div>
+  </header>
 
   <main class="container">
     <h1>Privacy Policy</h1>
-    <p class="meta">Continuo iOS app · Effective May 29, 2026</p>
+    <p class="meta">Continuo iOS app · Effective May 29, 2026 · <a href="#contact">Contact us</a></p>
 
     <div class="card">
       <strong>Short version:</strong> Continuo stores the data you create
