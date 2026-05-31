@@ -14,7 +14,6 @@ struct CoachClientActivityView: View {
     @State private var completions: [AssignmentCompletion] = []
     @State private var assignmentsListener: ListenerRegistration?
     @State private var completionsListener: ListenerRegistration?
-    @State private var expandedAssignmentId: String? = nil
 
     // Shared goals
     @State private var sharedGoals: [Goal] = []
@@ -93,13 +92,6 @@ struct CoachClientActivityView: View {
                                     assignment: assignment,
                                     completions: completionsFor(assignment),
                                     clientName: client.displayName,
-                                    isExpanded: expandedAssignmentId == assignment.id,
-                                    onToggleExpand: {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            expandedAssignmentId =
-                                                expandedAssignmentId == assignment.id ? nil : assignment.id
-                                        }
-                                    },
                                     onDelete: {
                                         Task { try? await AssignmentService.shared.deleteAssignment(assignment) }
                                     }

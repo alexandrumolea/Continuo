@@ -24,6 +24,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(Color.white.opacity(0.92))
