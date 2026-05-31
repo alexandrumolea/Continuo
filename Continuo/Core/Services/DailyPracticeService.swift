@@ -63,6 +63,17 @@ final class DailyPracticeService {
             .delete()
     }
 
+    // MARK: - Roll back competency points when a completion is removed
+    func rollbackCompetencyPoints(userId: String, practiceId: String, points: Int) async {
+        guard points > 0,
+              let competencyId = DailyPractice.catalog.first(where: { $0.id == practiceId })?.competencyId else { return }
+        try? await CompetencyService.shared.addPoints(
+            userId: userId,
+            competencyId: competencyId,
+            points: -points
+        )
+    }
+
     // MARK: - Update responses on an existing completion
     func update(event: JourneyEvent, responses: [String], userId: String) throws {
         guard let eventId = event.id,

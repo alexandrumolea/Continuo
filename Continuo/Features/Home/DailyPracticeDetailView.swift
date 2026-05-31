@@ -130,7 +130,6 @@ struct DailyPracticeDetailView: View {
                 .padding(.bottom, 48)
             }
         }
-        .onAppear { focusedIndex = 0 }
         .overlay(successOverlay)
     }
 

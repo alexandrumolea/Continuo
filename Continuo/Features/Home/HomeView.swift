@@ -354,6 +354,11 @@ struct HomeView: View {
                                         practiceId: practiceId,
                                         date: event.createdAt
                                     )
+                                    await DailyPracticeService.shared.rollbackCompetencyPoints(
+                                        userId: uid,
+                                        practiceId: practiceId,
+                                        points: event.gpEarned
+                                    )
                                 }
                             }
                         })

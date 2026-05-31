@@ -14,7 +14,16 @@ struct DailyPracticeResponseView: View {
         DailyPractice.catalog.first { $0.id == event.practiceId }
     }
     private var prompts: [String] { practice?.prompts ?? [] }
+    private var displayedPrompts: [String] {
+        if includesAnchorField {
+            return ["Chosen anchor (value/strength)"] + prompts
+        }
+        return prompts
+    }
     private var accentColor: Color { practice?.categoryColor ?? ContinuoTheme.sunYellow }
+    private var includesAnchorField: Bool {
+        event.practiceId == "activate_sage" && (event.responses?.count ?? 0) > prompts.count
+    }
 
     private var canSave: Bool {
         editedResponses.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -25,7 +34,10 @@ struct DailyPracticeResponseView: View {
         self.userId = userId
         // Pre-fill with existing responses; pad to match prompt count
         let existing = event.responses ?? []
-        let count = DailyPractice.catalog.first { $0.id == event.practiceId }?.prompts.count ?? max(existing.count, 1)
+        let promptCount = DailyPractice.catalog.first { $0.id == event.practiceId }?.prompts.count ?? 0
+        let includesAnchor = event.practiceId == "activate_sage" && existing.count > promptCount
+        let expectedCount = includesAnchor ? (promptCount + 1) : promptCount
+        let count = max(existing.count, max(expectedCount, 1))
         var filled = existing
         while filled.count < count { filled.append("") }
         _editedResponses = State(initialValue: filled)
@@ -63,13 +75,13 @@ struct DailyPracticeResponseView: View {
                     // Prompt + editable response pairs
                     ForEach(editedResponses.indices, id: \.self) { idx in
                         VStack(alignment: .leading, spacing: 10) {
-                            if idx < prompts.count {
+                            if idx < displayedPrompts.count {
                                 HStack(alignment: .top, spacing: 6) {
-                                    Text(prompts[idx])
+                                    Text(displayedPrompts[idx])
                                         .font(ContinuoTheme.rounded(14, weight: .semibold))
                                         .foregroundColor(accentColor)
                                         .fixedSize(horizontal: false, vertical: true)
-                                    if idx > 0 {
+                                    if idx > 0 && !(includesAnchorField && idx == 1) {
                                         Text("optional")
                                             .font(ContinuoTheme.rounded(11))
                                             .foregroundColor(ContinuoTheme.textLight)

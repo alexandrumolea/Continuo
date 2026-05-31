@@ -95,6 +95,37 @@ struct DailyPractice: Identifiable {
             competencyId: "self_trust"
         ),
         DailyPractice(
+            id: "appreciation_practice",
+            title: "Appreciation Practice",
+            emoji: "🙏",
+            category: "Relationships",
+            categoryColor: Color(hex: "2E7DD1"),
+            cardColor: Color(hex: "E8F2FD"),
+            prompts: [
+                "Who is someone you interact with regularly — who came to mind today?",
+                "What specific strength or quality have you noticed in them recently?",
+                "How does this quality shape the way you experience time together — and have you let them know?"
+            ],
+            gpReward: 5,
+            competencyId: "social_intelligence"
+        ),
+        DailyPractice(
+            id: "todays_evaluation",
+            title: "Today's Evaluation",
+            emoji: "⭐",
+            category: "Reflection",
+            categoryColor: Color(hex: "C87B3E"),
+            cardColor: Color(hex: "FEF0E6"),
+            prompts: [
+                "How would you grade today from 1 to 10?",
+                "Why did you choose that grade?",
+                "What was the most challenging moment and what did it ask of you?",
+                "What was the highlight of your day?"
+            ],
+            gpReward: 5,
+            competencyId: "adaptability_quotient"
+        ),
+        DailyPractice(
             id: "deep_connection",
             title: "Deep Connection",
             emoji: "🤝",
