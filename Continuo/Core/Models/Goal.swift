@@ -41,9 +41,14 @@ struct Goal: Identifiable, Codable {
     var createdAt: Date
     var successMeasure: String? = nil
     var order: Int = 0         // display order in In Focus
+    /// When true, the client's connected coach can read this goal + its reflections.
+    /// Optional for backward compat — nil/false both mean private.
+    var sharedWithCoach: Bool? = nil
+
+    var isSharedWithCoach: Bool { sharedWithCoach == true }
 
     enum CodingKeys: String, CodingKey {
-        case id, userId, title, type, emoji, progress, createdAt, successMeasure, order
+        case id, userId, title, type, emoji, progress, createdAt, successMeasure, order, sharedWithCoach
     }
 }
 

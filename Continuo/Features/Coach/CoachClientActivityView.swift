@@ -16,6 +16,10 @@ struct CoachClientActivityView: View {
     @State private var completionsListener: ListenerRegistration?
     @State private var expandedAssignmentId: String? = nil
 
+    // Shared goals
+    @State private var sharedGoals: [Goal] = []
+    @State private var goalsListener: ListenerRegistration?
+
     // Notes card
     @State private var hasNotes = false
     @State private var showNotes = false
@@ -57,7 +61,26 @@ struct CoachClientActivityView: View {
                     }
                     .buttonStyle(.plain)
 
-                    // ── 3. Assignments ──
+                    // ── 3. Shared Goals ──
+                    if !sharedGoals.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "target")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(ContinuoTheme.olive)
+                                Text("Shared Goals")
+                                    .font(ContinuoTheme.rounded(18, weight: .semibold))
+                                    .foregroundColor(ContinuoTheme.charcoal)
+                            }
+                            .padding(.top, 8)
+
+                            ForEach(sharedGoals) { goal in
+                                CoachClientGoalRow(goal: goal, clientName: client.displayName)
+                            }
+                        }
+                    }
+
+                    // ── 4. Assignments ──
                     if !assignments.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Assignments")
@@ -167,6 +190,9 @@ struct CoachClientActivityView: View {
             clientId: clientId, coachId: coachId,
             onChange: { completions = $0 }
         )
+        goalsListener = GoalService.shared.sharedGoalsListener(clientId: clientId) {
+            sharedGoals = $0
+        }
 
         checkNotes()
     }
@@ -175,6 +201,7 @@ struct CoachClientActivityView: View {
         sessionsListener?.remove()
         assignmentsListener?.remove()
         completionsListener?.remove()
+        goalsListener?.remove()
     }
 
     private func checkNotes() {

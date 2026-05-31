@@ -23,6 +23,7 @@ struct GoalDetailView: View {
     @State private var editType: GoalType = .general
     // Delete goal
     @State private var showDeleteAlert = false
+    @State private var isSharedWithCoach: Bool
     @FocusState private var reflectionFocused: Bool
     @FocusState private var editTitleFocused: Bool
     @FocusState private var successFocused: Bool
@@ -32,8 +33,9 @@ struct GoalDetailView: View {
     init(goal: Goal, userId: String) {
         self.goal = goal
         self.userId = userId
-        _progressDraft = State(initialValue: goal.progress)
-        _successDraft  = State(initialValue: goal.successMeasure ?? "")
+        _progressDraft    = State(initialValue: goal.progress)
+        _successDraft     = State(initialValue: goal.successMeasure ?? "")
+        _isSharedWithCoach = State(initialValue: goal.isSharedWithCoach)
     }
 
     private var progressPercent: Int { Int((progressDraft * 100).rounded()) }
@@ -54,6 +56,9 @@ struct GoalDetailView: View {
 
                     // Progress
                     progressCard
+
+                    // Coach sharing toggle
+                    coachSharingCard
 
                     // Reflections
                     reflectionsSection
@@ -193,6 +198,39 @@ struct GoalDetailView: View {
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
+            }
+        }
+    }
+
+    // MARK: - Coach sharing card
+    private var coachSharingCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: Binding(
+                    get: { isSharedWithCoach },
+                    set: { newValue in
+                        HapticFeedback.selection()
+                        isSharedWithCoach = newValue
+                        Task { try? await GoalService.shared.setSharedWithCoach(goal, shared: newValue) }
+                    }
+                )) {
+                    HStack(spacing: 10) {
+                        Image(systemName: isSharedWithCoach ? "person.2.fill" : "person.2")
+                            .foregroundColor(isSharedWithCoach ? goal.type.color : ContinuoTheme.textLight)
+                            .font(.system(size: 16))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Share with coach")
+                                .font(ContinuoTheme.rounded(14, weight: .semibold))
+                                .foregroundColor(ContinuoTheme.charcoal)
+                            Text(isSharedWithCoach
+                                 ? "Your coach can see this goal and your reflections."
+                                 : "Only you can see this goal.")
+                                .font(ContinuoTheme.rounded(12))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                        }
+                    }
+                }
+                .tint(goal.type.color)
             }
         }
     }

@@ -36,8 +36,8 @@ struct ProfileView: View {
                     .padding(.bottom, 48)
                 }
             }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .alert("Sign Out", isPresented: $showSignOutAlert) {
                 Button("Sign Out", role: .destructive) { auth.signOut() }
                 Button("Cancel", role: .cancel) {}

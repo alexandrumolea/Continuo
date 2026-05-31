@@ -56,6 +56,38 @@ final class GoalService {
         try await db.collection("goals").document(id).delete()
     }
 
+    func setSharedWithCoach(_ goal: Goal, shared: Bool) async throws {
+        guard let id = goal.id else { return }
+        try await db.collection("goals").document(id).updateData([
+            "sharedWithCoach": shared
+        ])
+    }
+
+    /// Coach listener — returns only goals the client has explicitly shared.
+    func sharedGoalsListener(clientId: String,
+                             onChange: @escaping ([Goal]) -> Void) -> ListenerRegistration {
+        db.collection("goals")
+            .whereField("userId", isEqualTo: clientId)
+            .whereField("sharedWithCoach", isEqualTo: true)
+            .addSnapshotListener { snapshot, error in
+                if let error = error { print("❌ sharedGoalsListener: \(error.localizedDescription)") }
+                let items = snapshot?.documents.compactMap { try? $0.data(as: Goal.self) } ?? []
+                onChange(items.sorted {
+                    if $0.order != $1.order { return $0.order < $1.order }
+                    return $0.createdAt < $1.createdAt
+                })
+            }
+    }
+
+    /// One-shot fetch of reflections for a shared goal (coach read-only).
+    func reflectionsOnce(goalId: String) async -> [GoalReflection] {
+        let snap = try? await db.collection("goals").document(goalId)
+            .collection("reflections")
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+        return snap?.documents.compactMap { try? $0.data(as: GoalReflection.self) } ?? []
+    }
+
     // MARK: - Reflections (subcollection under goals/{id}/reflections)
     func reflectionsListener(goalId: String, onChange: @escaping ([GoalReflection]) -> Void) -> ListenerRegistration {
         db.collection("goals").document(goalId)
