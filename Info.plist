@@ -29,6 +29,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Skips the export-compliance questionnaire on every TestFlight upload.
+	     We only use Apple-provided HTTPS encryption (Firebase, HealthKit, etc.) — exempt. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Continuo reads your mindful minutes from Apple Health so your meditation practice from other apps (Calm, Apple Watch, etc.) counts toward your daily mindfulness goal.</string>
 	<key>NSHealthUpdateUsageDescription</key>

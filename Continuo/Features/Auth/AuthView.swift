@@ -26,7 +26,7 @@ struct AuthView: View {
                     }
                     PrimaryButton(title: vm.isLoginMode ? "Sign In" : "Start my journey",
                                   isLoading: auth.isLoading) {
-                        vm.submit(using: auth)
+                        attemptSubmit()
                     }
                     .padding(.horizontal, 24)
                     .disabled(!vm.canSubmit)
@@ -181,9 +181,23 @@ struct AuthView: View {
 
             if !vm.isLoginMode {
                 roleSelector
+                TermsAgreementRow(agreed: $vm.agreedToTerms,
+                                  showError: $vm.showTermsError)
+                    .padding(.top, 4)
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    /// Intercepts the submit tap: in sign-up mode we require explicit consent and
+    /// surface a visible error if the user skipped the checkbox.
+    private func attemptSubmit() {
+        if !vm.isLoginMode && !vm.agreedToTerms {
+            HapticFeedback.medium()
+            withAnimation(.easeInOut(duration: 0.2)) { vm.showTermsError = true }
+            return
+        }
+        vm.submit(using: auth)
     }
 
     // MARK: - Forgot password

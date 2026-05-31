@@ -7,9 +7,13 @@ struct WelcomeSetupView: View {
 
     @State private var displayName: String = ""
     @State private var role: UserRole = .client
+    @State private var agreedToTerms = false
+    @State private var showTermsError = false
     @State private var isSaving = false
     @FocusState private var nameFocused: Bool
 
+    /// Form-level validity — consent is checked separately at tap-time so we can
+    /// give the user an explicit error message instead of silently disabling the button.
     private var canContinue: Bool {
         let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.count >= 2 && trimmed != "User"
@@ -25,6 +29,8 @@ struct WelcomeSetupView: View {
                     header
                     nameField
                     roleSelector
+                    TermsAgreementRow(agreed: $agreedToTerms,
+                                      showError: $showTermsError)
                     continueButton
                 }
                 .padding(.horizontal, 24)
@@ -110,6 +116,12 @@ struct WelcomeSetupView: View {
 
     private var continueButton: some View {
         PrimaryButton(title: isSaving ? "Saving…" : "Continue", isLoading: isSaving) {
+            // Surface a clear error when consent is missing (matches the email signup flow).
+            if !agreedToTerms {
+                HapticFeedback.medium()
+                withAnimation(.easeInOut(duration: 0.2)) { showTermsError = true }
+                return
+            }
             Task {
                 isSaving = true
                 await auth.completeProfileSetup(displayName: displayName, role: role)
