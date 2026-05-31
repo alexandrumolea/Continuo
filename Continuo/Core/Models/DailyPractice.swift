@@ -10,14 +10,16 @@ struct DailyPractice: Identifiable {
     let prompts: [String]
     let gpReward: Int
     let competencyId: String?   // hidden from user — awards points to this competency on completion
+    let introMessage: String?   // optional framing paragraph shown above prompts in DailyPracticeDetailView
 
     init(id: String, title: String, emoji: String, category: String,
          categoryColor: Color, cardColor: Color, prompts: [String],
-         gpReward: Int, competencyId: String? = nil) {
+         gpReward: Int, competencyId: String? = nil, introMessage: String? = nil) {
         self.id = id; self.title = title; self.emoji = emoji
         self.category = category; self.categoryColor = categoryColor
         self.cardColor = cardColor; self.prompts = prompts
         self.gpReward = gpReward; self.competencyId = competencyId
+        self.introMessage = introMessage
     }
 
     // Static catalog — order here is the display order
@@ -32,6 +34,21 @@ struct DailyPractice: Identifiable {
             prompts: [
                 "What do you want to focus on achieving today?",
                 "What can you decide now so that you grow your probability of achievement?"
+            ],
+            gpReward: 5,
+            competencyId: "agency"
+        ),
+        DailyPractice(
+            id: "preparing_for_challenges",
+            title: "Preparing for Challenges",
+            emoji: "🛡️",
+            category: "Agency",
+            categoryColor: Color(hex: "4E7040"),
+            cardColor: Color(hex: "EBF3E6"),
+            prompts: [
+                "What is the challenge I anticipate?",
+                "What is up to me? (in my control)",
+                "What is not up to me? (up to others, chance, things I cannot control)"
             ],
             gpReward: 5,
             competencyId: "agency"
@@ -105,6 +122,23 @@ struct DailyPractice: Identifiable {
             ],
             gpReward: 5,
             competencyId: "adaptability_quotient"
+        ),
+        DailyPractice(
+            id: "growth_mindset",
+            title: "Growth Mindset",
+            emoji: "🌱",
+            category: "Adaptability",
+            categoryColor: Color(hex: "2D9B8A"),
+            cardColor: Color(hex: "E6F6F4"),
+            prompts: [
+                "What is a situation you encountered today and you did not handle properly?",
+                "What did I do wrong?",
+                "What did I do right?",
+                "What could I have done differently?"
+            ],
+            gpReward: 5,
+            competencyId: "adaptability_quotient",
+            introMessage: "We tend to repeat patterns until we learn our lessons. It happens because, living mostly in the same context, there simply is a high probability to encounter similar challenges from time to time. How do we prepare for that? We learn."
         ),
         DailyPractice(
             id: "positive_outlook",

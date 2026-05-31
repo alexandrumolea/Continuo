@@ -192,27 +192,7 @@ struct PriorityAlignmentDetailView: View {
                 Spacer()
             }
 
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(agencyColor.opacity(0.12))
-                        .frame(height: 10)
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(
-                            LinearGradient(
-                                colors: [agencyColor.opacity(0.6), agencyColor],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: max(0, geo.size.width * alignment), height: 10)
-                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: alignment)
-                }
-            }
-            .frame(height: 10)
-
-            // Slider — 5 % steps so haptic fires at meaningful intervals
+            // Single slider — track + filled portion + thumb in one control (matches Goal detail view).
             Slider(value: $alignment, in: 0...1, step: 0.05)
                 .tint(agencyColor)
                 .onChange(of: alignment) { _, _ in

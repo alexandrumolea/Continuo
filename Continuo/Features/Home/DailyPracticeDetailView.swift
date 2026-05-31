@@ -50,6 +50,22 @@ struct DailyPracticeDetailView: View {
                     }
                     .padding(.top, 36)
 
+                    // Optional framing message (e.g. Growth Mindset)
+                    if let intro = practice.introMessage, !intro.isEmpty {
+                        Text(intro)
+                            .font(ContinuoTheme.rounded(14))
+                            .foregroundColor(ContinuoTheme.charcoal.opacity(0.78))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(practice.cardColor)
+                                    .overlay(RoundedRectangle(cornerRadius: 14)
+                                        .stroke(practice.categoryColor.opacity(0.25), lineWidth: 1))
+                            )
+                    }
+
                     // Prompt + response pairs
                     ForEach(Array(practice.prompts.enumerated()), id: \.offset) { idx, prompt in
                         VStack(alignment: .leading, spacing: 10) {
