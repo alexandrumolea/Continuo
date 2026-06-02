@@ -297,6 +297,12 @@ struct ActivateSageDetailView: View {
         let anchorLabel = "\(anchor.text) (\(anchor.kindLabel))"
         let responses = [anchorLabel, answer1, answer2, answer3]
         try? DailyPracticeService.shared.complete(practice: practice, responses: responses, userId: userId)
+        // If the user chose a Strength, also award 5 competency points to Self Trust
+        if anchor.kind == .strength {
+            Task {
+                try? await CompetencyService.shared.addPoints(userId: userId, competencyId: "self_trust", points: 5)
+            }
+        }
         withAnimation { completed = true }
         onCompleted?(practice.id)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }

@@ -54,6 +54,24 @@ final class DailyPracticeService {
             }
     }
 
+    // MARK: - One-shot fetch of completed practice IDs for any given date
+    func fetchCompletions(userId: String, date: Date) async -> Set<String> {
+        let key = dateKey(from: date)
+        do {
+            let snap = try await db.collection("users").document(userId)
+                .collection("dailyCompletions")
+                .getDocuments()
+            return Set(
+                snap.documents
+                    .filter { $0.documentID.hasSuffix("_\(key)") }
+                    .compactMap { $0.data()["practiceId"] as? String }
+            )
+        } catch {
+            print("❌ fetchCompletions: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     // MARK: - Delete a daily completion (reactivates the card for that day)
     func deleteCompletion(userId: String, practiceId: String, date: Date) async throws {
         let key = dateKey(from: date)

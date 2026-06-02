@@ -5,10 +5,10 @@ import FirebaseFirestore
 struct HomeView: View {
     @EnvironmentObject private var auth: AuthService
     @StateObject private var vm = HomeViewModel()
+    @Environment(\.scenePhase) private var scenePhase
     // UI-only state (data lives in vm)
     @State private var selectedPractice: DailyPractice? = nil
     @State private var selectedJourneyEvent: JourneyEvent? = nil
-    @State private var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @State private var selectedGoal: Goal? = nil
     @State private var showAddGoal = false
     @State private var showReorderGoals = false
@@ -51,6 +51,12 @@ struct HomeView: View {
             .onChange(of: auth.profile?.role) {
                 guard let uid = auth.firebaseUser?.uid else { return }
                 vm.start(userId: uid, isClient: auth.profile?.role == .client)
+            }
+            .onChange(of: scenePhase) {
+                if scenePhase == .active {
+                    guard let uid = auth.firebaseUser?.uid else { return }
+                    vm.start(userId: uid, isClient: auth.profile?.role == .client)
+                }
             }
             .onDisappear { vm.stop() }
             .sheet(item: $selectedPractice) { practice in
@@ -228,14 +234,15 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(DailyPractice.catalog) { practice in
+                        let isDone = vm.completedIdsForSelectedDate.contains(practice.id)
+                        let isOpenEnded = practice.id == "activate_sage" || practice.id == "mindfulness"
                         DailyPracticeCard(
                             practice: practice,
-                            isCompleted: vm.completedPracticeIds.contains(practice.id),
+                            isCompleted: isDone,
                             mindfulnessMinutes: practice.id == "mindfulness" ? vm.mindfulnessMinutesToday : nil
                         ) {
-                            // activate_sage and mindfulness are open-ended — always tappable
-                            let isDone = vm.completedPracticeIds.contains(practice.id)
-                            let isOpenEnded = practice.id == "activate_sage" || practice.id == "mindfulness"
+                            // Only allow interaction when viewing today
+                            guard vm.isViewingToday else { return }
                             if !isDone || isOpenEnded {
                                 selectedPractice = practice
                             }
@@ -378,7 +385,7 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
                     ForEach(allDates, id: \.self) { day in
-                        let isSelected = cal.isDate(day, inSameDayAs: selectedDate)
+                        let isSelected = cal.isDate(day, inSameDayAs: vm.selectedDate)
                         let isToday    = cal.isDate(day, inSameDayAs: today)
                         let hasDot     = vm.events.contains { cal.isDate($0.createdAt, inSameDayAs: day) }
                         let isFirstOfMonth = cal.component(.day, from: day) == 1
@@ -396,7 +403,7 @@ struct HomeView: View {
 
                             Button {
                                 HapticFeedback.selection()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedDate = day }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { vm.selectedDate = day }
                             } label: {
                                 VStack(spacing: 4) {
                                     Text(dayAbbrev(day))
@@ -460,7 +467,7 @@ struct HomeView: View {
 
     private var eventsForSelectedDate: [JourneyEvent] {
         let cal = Calendar.current
-        return vm.events.filter { cal.isDate($0.createdAt, inSameDayAs: selectedDate) }
+        return vm.events.filter { cal.isDate($0.createdAt, inSameDayAs: vm.selectedDate) }
     }
 
     private func dayAbbrev(_ date: Date) -> String {
@@ -478,7 +485,7 @@ struct HomeView: View {
                 Text("∞")
                     .font(.system(size: 44))
                     .foregroundColor(ContinuoTheme.sunOrange.opacity(0.5))
-                Text(Calendar.current.isDateInToday(selectedDate)
+                Text(Calendar.current.isDateInToday(vm.selectedDate)
                      ? "Your journey begins here.\nComplete a habit or log a reflection."
                      : "Nothing logged on this day.")
                     .font(ContinuoTheme.rounded(14))
