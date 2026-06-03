@@ -30,7 +30,18 @@ struct ContinuoUser: Identifiable, Codable {
     /// `nil` for legacy profiles created before this field existed — treated as "complete".
     var setupCompleted: Bool? = nil
 
+    // MARK: - Streak
+    var currentStreak: Int?
+    var longestStreak: Int?
+    var lastActivityDate: String?  // "yyyy-MM-dd"
+
+    // MARK: - Activity counters (for badge progress)
+    var totalPracticeCount: Int?
+    var totalCoachingCount: Int?
+
     enum CodingKeys: String, CodingKey {
         case id, displayName, email, role, coachId, totalGP, setupCompleted
+        case currentStreak, longestStreak, lastActivityDate
+        case totalPracticeCount, totalCoachingCount
     }
 }

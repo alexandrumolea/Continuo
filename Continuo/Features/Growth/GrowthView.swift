@@ -12,13 +12,20 @@ struct GrowthView: View {
     @State private var assignmentToReactivate: Assignment? = nil
     @State private var competencyScores: [CompetencyScore] = []
     @State private var scoresListener: ListenerRegistration?
+    @State private var recentActivityDates: Set<String> = []
+    @State private var showAllBadges = false
 
     // Coach-only state
     @State private var coachClients: [ContinuoUser] = []
     @State private var clientsListener: ListenerRegistration?
 
-    private var totalGP: Int { auth.profile?.totalGP ?? 0 }
-    private var isCoach: Bool { auth.profile?.role == .coach }
+    private var totalGP: Int          { auth.profile?.totalGP          ?? 0 }
+    private var isCoach: Bool         { auth.profile?.role == .coach }
+    private var practiceCount: Int    { auth.profile?.totalPracticeCount ?? 0 }
+    private var coachingCount: Int    { auth.profile?.totalCoachingCount ?? 0 }
+    private var maxCompScore: Int     { competencyScores.map(\.effectivePoints).max() ?? 0 }
+    private var currentStreak: Int    { auth.profile?.currentStreak  ?? 0 }
+    private var longestStreak: Int    { auth.profile?.longestStreak  ?? 0 }
 
     var body: some View {
         NavigationStack {
@@ -36,6 +43,7 @@ struct GrowthView: View {
                             if !finishedAssignments.isEmpty {
                                 completedChallengesSection
                             }
+                            streakCard
                             badgesSection
                         }
                     }
@@ -45,9 +53,6 @@ struct GrowthView: View {
                 }
             }
             .navigationBarHidden(true)
-            .onChange(of: totalGP) { _, newGP in
-                if !isCoach { vm.loadBadges(totalGP: newGP) }
-            }
             .onAppear {
                 // Scroll carousel to current tier immediately
                 let idx = vm.currentTierIndex(gp: totalGP)
@@ -62,12 +67,15 @@ struct GrowthView: View {
                         coachClients = $0
                     }
                 } else {
-                    vm.loadBadges(totalGP: totalGP)
+                    vm.startBadgesListener(userId: uid)
                     assignmentListener = AssignmentService.shared.finishedAssignmentsListener(clientId: uid) {
                         finishedAssignments = $0
                     }
                     scoresListener = CompetencyService.shared.scoresListener(userId: uid) {
                         competencyScores = $0
+                    }
+                    Task {
+                        recentActivityDates = await StreakService.shared.recentActivityDates(userId: uid, days: 30)
                     }
                 }
             }
@@ -75,6 +83,15 @@ struct GrowthView: View {
                 assignmentListener?.remove()
                 clientsListener?.remove()
                 scoresListener?.remove()
+                vm.stopBadgesListener()
+            }
+            .sheet(isPresented: $showAllBadges) {
+                AllBadgesSheet(
+                    earnedBadgeDates: vm.earnedBadgeDates,
+                    practiceCount: practiceCount,
+                    coachingCount: coachingCount,
+                    maxCompScore: maxCompScore
+                )
             }
             .alert("Reactivate challenge?", isPresented: Binding(
                 get: { assignmentToReactivate != nil },
@@ -372,17 +389,131 @@ struct GrowthView: View {
         }
     }
 
-    // MARK: - Badges
-    private var badgesSection: some View {
+    // MARK: - Streak card
+
+    private var streakCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Badges")
+            Text("Your Streak")
                 .font(ContinuoTheme.rounded(20, weight: .semibold))
                 .foregroundColor(ContinuoTheme.charcoal)
 
-            LazyVGrid(columns: Array(repeating: .init(.flexible(), spacing: 12), count: 4), spacing: 12) {
-                ForEach(vm.badges) { badge in
-                    BadgeCell(badge: badge)
+            GlassCard {
+                VStack(spacing: 20) {
+                    // Headline numbers
+                    HStack(spacing: 0) {
+                        VStack(spacing: 4) {
+                            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                                Text("🔥")
+                                    .font(.system(size: 28))
+                                Text("\(currentStreak)")
+                                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                                    .foregroundColor(ContinuoTheme.sunOrange)
+                            }
+                            Text("day streak")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider()
+                            .frame(height: 50)
+                            .opacity(0.3)
+
+                        VStack(spacing: 4) {
+                            Text("\(longestStreak)")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .foregroundColor(ContinuoTheme.charcoal.opacity(0.5))
+                            Text("best")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // 30-day heatmap dots
+                    activityHeatmap
                 }
+            }
+        }
+    }
+
+    private var activityHeatmap: some View {
+        let cal = Calendar.current
+        let today = Date()
+        let f: DateFormatter = {
+            let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"; return df
+        }()
+        let days: [Date] = (0..<30).reversed().compactMap {
+            cal.date(byAdding: .day, value: -$0, to: today)
+        }
+
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Last 30 days")
+                .font(ContinuoTheme.rounded(11, weight: .medium))
+                .foregroundColor(ContinuoTheme.textLight)
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10),
+                spacing: 4
+            ) {
+                ForEach(days, id: \.self) { day in
+                    let key     = f.string(from: day)
+                    let hasActivity = recentActivityDates.contains(key)
+                    let isToday = cal.isDateInToday(day)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(hasActivity
+                              ? ContinuoTheme.sunOrange.opacity(0.75)
+                              : ContinuoTheme.charcoal.opacity(0.07))
+                        .frame(height: 22)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(isToday ? ContinuoTheme.sunOrange : Color.clear, lineWidth: 1.5)
+                        )
+                }
+            }
+        }
+    }
+
+    // MARK: - Badges ("Next Up" cards)
+
+    private var badgesSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Badges")
+                    .font(ContinuoTheme.rounded(20, weight: .semibold))
+                    .foregroundColor(ContinuoTheme.charcoal)
+                Spacer()
+                Button { showAllBadges = true } label: {
+                    HStack(spacing: 4) {
+                        Text("See all")
+                            .font(ContinuoTheme.rounded(13, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(ContinuoTheme.terracotta)
+                }
+            }
+
+            ForEach(BadgeCategory.allCases, id: \.self) { category in
+                NextUpBadgeCard(
+                    category: category,
+                    nextBadge: vm.nextBadge(for: category),
+                    allEarned: vm.allEarned(for: category),
+                    progress: vm.nextBadge(for: category).map {
+                        vm.progress(for: $0,
+                                    practiceCount: practiceCount,
+                                    coachingCount: coachingCount,
+                                    maxCompetencyScore: maxCompScore)
+                    } ?? 1.0,
+                    currentValue: { () -> Int in
+                        switch category {
+                        case .practice:   return practiceCount
+                        case .coaching:   return coachingCount
+                        case .competency: return maxCompScore
+                        }
+                    }()
+                )
             }
         }
     }
@@ -549,48 +680,276 @@ struct CoachClientProgressCard: View {
     }
 }
 
-// MARK: - Badge cell
-struct BadgeCell: View {
-    let badge: Badge
+// MARK: - Next Up badge card
+
+struct NextUpBadgeCard: View {
+    let category: BadgeCategory
+    let nextBadge: BadgeDefinition?
+    let allEarned: Bool
+    let progress: Double   // 0…1
+    let currentValue: Int
+
+    private var accentColor: Color {
+        switch category {
+        case .coaching:   return Color(hex: "2E7DD1")
+        case .practice:   return Color(hex: "4E7040")
+        case .competency: return Color(hex: "7B5EA7")
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .fill(badge.isUnlocked
-                          ? ContinuoTheme.sunOrange.opacity(0.14)
-                          : ContinuoTheme.charcoal.opacity(0.05))
-                    .frame(width: 56, height: 56)
-                Text(badge.emoji)
-                    .font(.title2)
-                    .opacity(badge.isUnlocked ? 1.0 : 0.25)
-                if !badge.isUnlocked {
-                    Image(systemName: "lock.fill")
-                        .font(.caption2)
-                        .foregroundColor(ContinuoTheme.textLight)
-                        .offset(x: 16, y: 16)
+        GlassCard(padding: 16) {
+            if allEarned {
+                allEarnedRow
+            } else if let badge = nextBadge {
+                progressRow(badge: badge)
+            }
+        }
+    }
+
+    private func progressRow(badge: BadgeDefinition) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                // Badge icon
+                ZStack {
+                    Circle()
+                        .fill(accentColor.opacity(0.12))
+                        .frame(width: 46, height: 46)
+                    Text(badge.emoji)
+                        .font(.system(size: 22))
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(badge.title)
+                            .font(ContinuoTheme.rounded(15, weight: .semibold))
+                            .foregroundColor(ContinuoTheme.charcoal)
+                        Text(category.title.uppercased())
+                            .font(ContinuoTheme.rounded(9, weight: .bold))
+                            .foregroundColor(accentColor.opacity(0.75))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(accentColor.opacity(0.1)))
+                            .kerning(0.3)
+                    }
+                    Text(badge.description)
+                        .font(ContinuoTheme.rounded(12))
+                        .foregroundColor(ContinuoTheme.textMedium)
+                }
+
+                Spacer(minLength: 0)
+
+                Text("\(currentValue) / \(badge.threshold)")
+                    .font(ContinuoTheme.rounded(12, weight: .semibold))
+                    .foregroundColor(accentColor)
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(accentColor.opacity(0.12))
+                        .frame(height: 7)
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(accentColor)
+                        .frame(width: geo.size.width * max(progress, progress > 0 ? 0.03 : 0),
+                               height: 7)
+                        .animation(.spring(response: 0.5), value: progress)
                 }
             }
-            Text(badge.title)
-                .font(ContinuoTheme.rounded(10, weight: .medium))
-                .foregroundColor(badge.isUnlocked
-                                 ? ContinuoTheme.charcoal
-                                 : ContinuoTheme.charcoal.opacity(0.35))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+            .frame(height: 7)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
+    }
+
+    private var allEarnedRow: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(ContinuoTheme.olive.opacity(0.12))
+                    .frame(width: 46, height: 46)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(ContinuoTheme.olive)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(category.title) — All earned!")
+                    .font(ContinuoTheme.rounded(15, weight: .semibold))
+                    .foregroundColor(ContinuoTheme.charcoal)
+                Text("You've unlocked every badge in this series.")
+                    .font(ContinuoTheme.rounded(12))
+                    .foregroundColor(ContinuoTheme.textMedium)
+            }
+            Spacer()
+        }
+    }
+}
+
+// MARK: - All Badges sheet
+
+struct AllBadgesSheet: View {
+    let earnedBadgeDates: [String: Date]
+    let practiceCount: Int
+    let coachingCount: Int
+    let maxCompScore: Int
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let dateF: DateFormatter = {
+        let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none; return f
+    }()
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                ContinuoTheme.background.ignoresSafeArea()
+                BackgroundOrbs()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 32) {
+                        ForEach(BadgeCategory.allCases, id: \.self) { category in
+                            categorySection(category)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("All Badges")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func categorySection(_ category: BadgeCategory) -> some View {
+        let badges = BadgeService.catalog.filter { $0.category == category }
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(category.title)
+                .font(ContinuoTheme.rounded(18, weight: .semibold))
+                .foregroundColor(ContinuoTheme.charcoal)
+
+            VStack(spacing: 10) {
+                ForEach(badges) { badge in
+                    badgeRow(badge)
+                }
+            }
+        }
+    }
+
+    private func badgeRow(_ badge: BadgeDefinition) -> some View {
+        let earned      = earnedBadgeDates[badge.id]
+        let isUnlocked  = earned != nil
+        let accent      = accentFor(badge.category)
+
+        let currentValue: Int = {
+            switch badge.category {
+            case .practice:   return practiceCount
+            case .coaching:   return coachingCount
+            case .competency: return maxCompScore
+            }
+        }()
+        let progress = min(1.0, Double(currentValue) / Double(badge.threshold))
+
+        return HStack(spacing: 14) {
+            // ── Emoji badge ──────────────────────────────────────
+            ZStack {
+                Circle()
+                    .fill(isUnlocked ? accent.opacity(0.15) : Color.clear)
+                    .frame(width: 50, height: 50)
+                Circle()
+                    .stroke(isUnlocked ? accent.opacity(0.3) : ContinuoTheme.charcoal.opacity(0.12),
+                            lineWidth: 1.5)
+                    .frame(width: 50, height: 50)
+                Text(badge.emoji)
+                    .font(.system(size: 22))
+                    .opacity(isUnlocked ? 1.0 : 0.2)
+                if !isUnlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(ContinuoTheme.charcoal.opacity(0.3))
+                        .offset(x: 14, y: 14)
+                }
+            }
+
+            // ── Text + progress ───────────────────────────────────
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(badge.title)
+                        .font(ContinuoTheme.rounded(15, weight: .semibold))
+                        .foregroundColor(isUnlocked
+                                         ? ContinuoTheme.charcoal
+                                         : ContinuoTheme.charcoal.opacity(0.35))
+                    if isUnlocked {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(accent)
+                    }
+                }
+                Text(badge.description)
+                    .font(ContinuoTheme.rounded(12))
+                    .foregroundColor(isUnlocked
+                                     ? ContinuoTheme.textMedium
+                                     : ContinuoTheme.textLight.opacity(0.5))
+
+                if !isUnlocked {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(accent.opacity(0.08))
+                                .frame(height: 4)
+                            if progress > 0 {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(accent.opacity(0.45))
+                                    .frame(width: max(geo.size.width * progress, 8), height: 4)
+                            }
+                        }
+                    }
+                    .frame(height: 4)
+                    .padding(.top, 2)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            // ── Right side ────────────────────────────────────────
+            if let date = earned {
+                Text(dateF.string(from: date))
+                    .font(ContinuoTheme.rounded(10))
+                    .foregroundColor(accent.opacity(0.7))
+                    .multilineTextAlignment(.trailing)
+            } else {
+                Text("\(currentValue)/\(badge.threshold)")
+                    .font(ContinuoTheme.rounded(12, weight: .semibold))
+                    .foregroundColor(ContinuoTheme.charcoal.opacity(0.25))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isUnlocked
+                      ? accent.opacity(0.06)
+                      : ContinuoTheme.charcoal.opacity(0.03))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(badge.isUnlocked
-                                ? ContinuoTheme.sunOrange.opacity(0.3)
-                                : Color.white.opacity(0.5), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isUnlocked ? accent.opacity(0.18) : Color.clear, lineWidth: 1)
                 )
         )
+        .opacity(isUnlocked ? 1.0 : 0.55)
+    }
+
+    private func accentFor(_ category: BadgeCategory) -> Color {
+        switch category {
+        case .coaching:   return Color(hex: "2E7DD1")
+        case .practice:   return Color(hex: "4E7040")
+        case .competency: return Color(hex: "7B5EA7")
+        }
     }
 }
 

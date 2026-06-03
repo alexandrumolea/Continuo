@@ -48,6 +48,7 @@ final class CoachingSessionService {
         try batch.setData(from: event, forDocument: eventRef)
 
         batch.commit()
+        incrementAndCheckCoaching(userId: userId)
     }
 
     // MARK: - Coach logs session for a client
@@ -80,6 +81,7 @@ final class CoachingSessionService {
         try batch.setData(from: event, forDocument: eventRef)
 
         batch.commit()
+        incrementAndCheckCoaching(userId: clientId)
     }
 
     // MARK: - Update (client edits their own OR a coach-logged session)
@@ -94,6 +96,21 @@ final class CoachingSessionService {
         ]
         if !summary.isEmpty { data["summary"] = summary }
         try await db.collection("coachingSessions").document(id).updateData(data)
+    }
+
+    // MARK: - Private helpers
+
+    private func incrementAndCheckCoaching(userId: String) {
+        Task {
+            let userRef = db.collection("users").document(userId)
+            try? await userRef.updateData([
+                "totalCoachingCount": FieldValue.increment(Int64(1))
+            ])
+            await StreakService.shared.updateStreak(userId: userId)
+            let snap = try? await userRef.getDocument()
+            let newCount = (snap?.data()?["totalCoachingCount"] as? Int) ?? 1
+            await BadgeService.shared.checkAndAwardCoaching(userId: userId, coachingCount: newCount)
+        }
     }
 
     // MARK: - Delete session + deduct GP

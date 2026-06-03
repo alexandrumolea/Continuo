@@ -177,12 +177,23 @@ final class DailyPracticeService {
         )
         try db.collection("journeyEvents").addDocument(from: event)
 
-        // Award competency points (fire-and-forget)
-        if let competencyId = (DailyPractice.catalog.first { $0.id == "mindfulness" })?.competencyId {
-            Task {
+        // Background: competency points + practice count (only on first milestone) + streak + badge check
+        Task {
+            if let competencyId = (DailyPractice.catalog.first { $0.id == "mindfulness" })?.competencyId {
                 try? await CompetencyService.shared.addPoints(
                     userId: userId, competencyId: competencyId, points: gpDelta
                 )
+            }
+            // Count mindfulness as a practice only once per day (when first milestone reached, i.e. !snap.exists before)
+            if !snap.exists {
+                let userRef = db.collection("users").document(userId)
+                try? await userRef.updateData([
+                    "totalPracticeCount": FieldValue.increment(Int64(1))
+                ])
+                await StreakService.shared.updateStreak(userId: userId)
+                let newSnap = try? await userRef.getDocument()
+                let newCount = (newSnap?.data()?["totalPracticeCount"] as? Int) ?? 1
+                await BadgeService.shared.checkAndAwardPractice(userId: userId, practiceCount: newCount)
             }
         }
 
@@ -226,15 +237,28 @@ final class DailyPracticeService {
 
         batch.commit()
 
-        // Award competency points in background (fire-and-forget)
-        if let competencyId = practice.competencyId {
-            Task {
+        // Background: competency points + practice count + streak + badge check
+        Task {
+            // Competency points
+            if let competencyId = practice.competencyId {
                 try? await CompetencyService.shared.addPoints(
                     userId: userId,
                     competencyId: competencyId,
                     points: practice.gpReward
                 )
             }
+
+            // Increment totalPracticeCount and update streak atomically
+            let userRef = db.collection("users").document(userId)
+            try? await userRef.updateData([
+                "totalPracticeCount": FieldValue.increment(Int64(1))
+            ])
+            await StreakService.shared.updateStreak(userId: userId)
+
+            // Badge check
+            let snap = try? await userRef.getDocument()
+            let newCount = (snap?.data()?["totalPracticeCount"] as? Int) ?? 1
+            await BadgeService.shared.checkAndAwardPractice(userId: userId, practiceCount: newCount)
         }
     }
 }

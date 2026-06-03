@@ -32,11 +32,26 @@ final class CompetencyService {
             currentEffective = 0
         }
 
+        let newPoints = max(0, currentEffective + points)
         try await ref.setData([
             "userId":           userId,
             "competencyId":     competencyId,
-            "points":           max(0, currentEffective + points),
+            "points":           newPoints,
             "lastActivityDate": Timestamp(date: Date())
         ])
+
+        // Check competency badges — only when points actually increased
+        if points > 0 {
+            Task {
+                // Fetch all scores to get the max
+                let snap = try? await db.collection("competencyScores")
+                    .whereField("userId", isEqualTo: userId)
+                    .getDocuments()
+                let maxScore = snap?.documents
+                    .compactMap { $0.data()["points"] as? Int }
+                    .max() ?? newPoints
+                await BadgeService.shared.checkAndAwardCompetency(userId: userId, maxScore: maxScore)
+            }
+        }
     }
 }
