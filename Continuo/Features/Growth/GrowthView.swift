@@ -18,6 +18,7 @@ struct GrowthView: View {
     // Coach-only state
     @State private var coachClients: [ContinuoUser] = []
     @State private var clientsListener: ListenerRegistration?
+    @State private var selectedCoachPractice: CoachPractice? = nil
 
     private var totalGP: Int          { auth.profile?.totalGP          ?? 0 }
     private var isCoach: Bool         { auth.profile?.role == .coach }
@@ -84,6 +85,11 @@ struct GrowthView: View {
                 clientsListener?.remove()
                 scoresListener?.remove()
                 vm.stopBadgesListener()
+            }
+            .sheet(item: $selectedCoachPractice) { practice in
+                coachPracticeSheet(for: practice)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAllBadges) {
                 AllBadgesSheet(
@@ -182,6 +188,35 @@ struct GrowthView: View {
     // MARK: - Coach dashboard
     @ViewBuilder
     private var coachGrowthContent: some View {
+        VStack(alignment: .leading, spacing: 40) {
+            getInspiredSection
+            clientProgressSection
+        }
+    }
+
+    private var getInspiredSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Get Inspired")
+                .font(ContinuoTheme.rounded(20, weight: .semibold))
+                .foregroundColor(ContinuoTheme.charcoal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(CoachPractice.catalog) { practice in
+                        CoachPracticeCard(practice: practice) {
+                            if case .comingSoon = practice.type { return }
+                            selectedCoachPractice = practice
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 4)
+            }
+            .padding(.horizontal, -20)
+        }
+    }
+
+    private var clientProgressSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Client Progress")
                 .font(ContinuoTheme.rounded(20, weight: .semibold))
@@ -204,6 +239,21 @@ struct GrowthView: View {
                     CoachClientProgressCard(client: client)
                 }
             }
+        }
+    }
+
+    // MARK: - Coach practice sheet router
+
+    @ViewBuilder
+    private func coachPracticeSheet(for practice: CoachPractice) -> some View {
+        let coachId = auth.firebaseUser?.uid ?? ""
+        switch practice.type {
+        case .questionList(let questions):
+            CoachQuestionListView(practice: practice, coachId: coachId, questions: questions)
+        case .reflectionForm(let prompts):
+            CoachSessionReflectionView(practice: practice, coachId: coachId, prompts: prompts)
+        case .comingSoon:
+            EmptyView()
         }
     }
 
@@ -402,9 +452,8 @@ struct GrowthView: View {
                     // Headline numbers
                     HStack(spacing: 0) {
                         VStack(spacing: 4) {
-                            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                                Text("🔥")
-                                    .font(.system(size: 28))
+                            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                                Text("🔥").font(.system(size: 26))
                                 Text("\(currentStreak)")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .foregroundColor(ContinuoTheme.sunOrange)
@@ -415,63 +464,166 @@ struct GrowthView: View {
                         }
                         .frame(maxWidth: .infinity)
 
-                        Divider()
-                            .frame(height: 50)
-                            .opacity(0.3)
+                        Divider().frame(height: 50).opacity(0.3)
 
                         VStack(spacing: 4) {
                             Text("\(longestStreak)")
                                 .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundColor(ContinuoTheme.charcoal.opacity(0.5))
+                                .foregroundColor(ContinuoTheme.charcoal.opacity(0.45))
                             Text("best")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider().frame(height: 50).opacity(0.3)
+
+                        VStack(spacing: 4) {
+                            Text("\(recentActivityDates.count)")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .foregroundColor(ContinuoTheme.olive)
+                            Text("active / 30d")
                                 .font(ContinuoTheme.rounded(13))
                                 .foregroundColor(ContinuoTheme.textMedium)
                         }
                         .frame(maxWidth: .infinity)
                     }
 
-                    // 30-day heatmap dots
-                    activityHeatmap
+                    // Streak message
+                    if currentStreak > 0 {
+                        Text(streakMessage)
+                            .font(ContinuoTheme.rounded(13))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    activityCalendar
                 }
             }
         }
     }
 
-    private var activityHeatmap: some View {
-        let cal = Calendar.current
+    private var streakMessage: String {
+        switch currentStreak {
+        case 1:       return "Great start — come back tomorrow to build your streak."
+        case 2..<7:   return "Building momentum. Keep it going! 🌱"
+        case 7..<14:  return "One week strong. You're developing a real habit. 🌟"
+        case 14..<30: return "Impressive consistency. This is becoming who you are. 💪"
+        default:      return "Unstoppable. A month+ of daily practice. 🔥"
+        }
+    }
+
+    private var activityCalendar: some View {
+        let cal   = Calendar.current
         let today = Date()
-        let f: DateFormatter = {
-            let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"; return df
-        }()
-        let days: [Date] = (0..<30).reversed().compactMap {
-            cal.date(byAdding: .day, value: -$0, to: today)
+        let f: DateFormatter = { let d = DateFormatter(); d.dateFormat = "yyyy-MM-dd"; return d }()
+        let monthF: DateFormatter = { let d = DateFormatter(); d.dateFormat = "MMM"; return d }()
+
+        // Build the 30-day window
+        let windowStart = cal.date(byAdding: .day, value: -29, to: today)!
+
+        // Find the Monday of the week containing windowStart
+        var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: windowStart)
+        comps.weekday = 2 // Monday
+        let gridStart = cal.date(from: comps) ?? windowStart
+
+        // Build all days from gridStart to today (complete weeks)
+        var gridDays: [Date] = []
+        var cursor = gridStart
+        while cursor <= today {
+            gridDays.append(cursor)
+            cursor = cal.date(byAdding: .day, value: 1, to: cursor)!
+        }
+        // Pad to full last week
+        while gridDays.count % 7 != 0 {
+            gridDays.append(cal.date(byAdding: .day, value: 1, to: gridDays.last!)!)
         }
 
-        return VStack(alignment: .leading, spacing: 6) {
-            Text("Last 30 days")
-                .font(ContinuoTheme.rounded(11, weight: .medium))
-                .foregroundColor(ContinuoTheme.textLight)
+        let weeks = stride(from: 0, to: gridDays.count, by: 7).map {
+            Array(gridDays[$0..<min($0 + 7, gridDays.count)])
+        }
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10),
-                spacing: 4
-            ) {
-                ForEach(days, id: \.self) { day in
-                    let key     = f.string(from: day)
-                    let hasActivity = recentActivityDates.contains(key)
-                    let isToday = cal.isDateInToday(day)
+        let dayHeaders = ["M", "T", "W", "T", "F", "S", "S"]
 
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(hasActivity
-                              ? ContinuoTheme.sunOrange.opacity(0.75)
-                              : ContinuoTheme.charcoal.opacity(0.07))
-                        .frame(height: 22)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(isToday ? ContinuoTheme.sunOrange : Color.clear, lineWidth: 1.5)
-                        )
+        return VStack(alignment: .leading, spacing: 4) {
+            // Day-of-week header
+            HStack(spacing: 0) {
+                ForEach(dayHeaders.indices, id: \.self) { i in
+                    Text(dayHeaders[i])
+                        .font(ContinuoTheme.rounded(10, weight: .semibold))
+                        .foregroundColor(ContinuoTheme.textLight)
+                        .frame(maxWidth: .infinity)
                 }
             }
+
+            // Week rows
+            ForEach(weeks.indices, id: \.self) { wIdx in
+                let week = weeks[wIdx]
+                HStack(spacing: 0) {
+                    ForEach(week.indices, id: \.self) { dIdx in
+                        let day        = week[dIdx]
+                        let key        = f.string(from: day)
+                        let isInWindow = day >= windowStart && day <= today
+                        let isFuture   = day > today
+                        let hasAct     = isInWindow && recentActivityDates.contains(key)
+                        let isToday    = cal.isDateInToday(day)
+                        let dayNum     = cal.component(.day, from: day)
+                        let isFirst    = dayNum == 1 && !isFuture
+
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(
+                                    isFuture      ? Color.clear :
+                                    hasAct        ? ContinuoTheme.sunOrange.opacity(0.80) :
+                                    isInWindow    ? ContinuoTheme.charcoal.opacity(0.06)
+                                                  : Color.clear
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(isToday ? ContinuoTheme.sunOrange : Color.clear, lineWidth: 1.5)
+                                )
+
+                            if !isFuture {
+                                VStack(spacing: 1) {
+                                    if isFirst {
+                                        Text(monthF.string(from: day))
+                                            .font(.system(size: 7, weight: .bold))
+                                            .foregroundColor(hasAct ? .white.opacity(0.9) : ContinuoTheme.sunOrange)
+                                            .lineLimit(1)
+                                    }
+                                    Text("\(dayNum)")
+                                        .font(.system(size: isFirst ? 9 : 11, weight: isToday ? .bold : .regular, design: .rounded))
+                                        .foregroundColor(
+                                            hasAct  ? .white :
+                                            isToday ? ContinuoTheme.sunOrange
+                                                    : ContinuoTheme.charcoal.opacity(isInWindow ? 0.55 : 0.2)
+                                        )
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 32)
+                    }
+                }
+            }
+
+            // Legend
+            HStack(spacing: 6) {
+                Spacer()
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(ContinuoTheme.charcoal.opacity(0.06))
+                    .frame(width: 12, height: 12)
+                Text("No activity")
+                    .font(ContinuoTheme.rounded(10))
+                    .foregroundColor(ContinuoTheme.textLight)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(ContinuoTheme.sunOrange.opacity(0.80))
+                    .frame(width: 12, height: 12)
+                Text("Active day")
+                    .font(ContinuoTheme.rounded(10))
+                    .foregroundColor(ContinuoTheme.textLight)
+            }
+            .padding(.top, 4)
         }
     }
 

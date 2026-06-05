@@ -154,6 +154,21 @@ final class DailyPracticeService {
             try await docRef.setData(data)
         }
 
+        // Streak + practice count: on first log of the day, regardless of how many minutes
+        // (was previously gated on gpDelta > 0, so sub-5-min sessions were silently dropped)
+        if !snap.exists {
+            Task {
+                let userRef = db.collection("users").document(userId)
+                try? await userRef.updateData([
+                    "totalPracticeCount": FieldValue.increment(Int64(1))
+                ])
+                await StreakService.shared.updateStreak(userId: userId)
+                let newSnap = try? await userRef.getDocument()
+                let newCount = (newSnap?.data()?["totalPracticeCount"] as? Int) ?? 1
+                await BadgeService.shared.checkAndAwardPractice(userId: userId, practiceCount: newCount)
+            }
+        }
+
         guard gpDelta > 0 else { return 0 }
 
         // Award GP on user profile
@@ -177,23 +192,12 @@ final class DailyPracticeService {
         )
         try db.collection("journeyEvents").addDocument(from: event)
 
-        // Background: competency points + practice count (only on first milestone) + streak + badge check
+        // Background: competency points (only when GP was earned at a new tier)
         Task {
             if let competencyId = (DailyPractice.catalog.first { $0.id == "mindfulness" })?.competencyId {
                 try? await CompetencyService.shared.addPoints(
                     userId: userId, competencyId: competencyId, points: gpDelta
                 )
-            }
-            // Count mindfulness as a practice only once per day (when first milestone reached, i.e. !snap.exists before)
-            if !snap.exists {
-                let userRef = db.collection("users").document(userId)
-                try? await userRef.updateData([
-                    "totalPracticeCount": FieldValue.increment(Int64(1))
-                ])
-                await StreakService.shared.updateStreak(userId: userId)
-                let newSnap = try? await userRef.getDocument()
-                let newCount = (newSnap?.data()?["totalPracticeCount"] as? Int) ?? 1
-                await BadgeService.shared.checkAndAwardPractice(userId: userId, practiceCount: newCount)
             }
         }
 

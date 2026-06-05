@@ -13,6 +13,10 @@ struct CoachClientsView: View {
     @State private var clientForAssignment: ContinuoUser?
     @State private var clientForNotes: ContinuoUser?
 
+    // Practice timeline
+    @State private var practiceEntries: [CoachPracticeEntry] = []
+    @State private var practiceListener: ListenerRegistration?
+
     private var coachId: String { auth.firebaseUser?.uid ?? "" }
 
     var body: some View {
@@ -25,6 +29,9 @@ struct CoachClientsView: View {
                     VStack(spacing: 20) {
                         coachCodeCard
                         clientsSection
+                        if !practiceEntries.isEmpty {
+                            practiceTimelineSection
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
@@ -33,8 +40,16 @@ struct CoachClientsView: View {
             }
             .navigationTitle("My Clients")
             .navigationBarTitleDisplayMode(.large)
-            .onAppear { loadClients() }
-            .onDisappear { listener?.remove() }
+            .onAppear {
+                loadClients()
+                practiceListener = CoachPracticeService.shared.recentEntriesListener(coachId: coachId) {
+                    practiceEntries = $0
+                }
+            }
+            .onDisappear {
+                listener?.remove()
+                practiceListener?.remove()
+            }
 
             // ── Sheets ──
             .sheet(item: $clientForSession) { client in
@@ -134,6 +149,28 @@ struct CoachClientsView: View {
         }
     }
 
+    // MARK: - Practice timeline
+
+    private var practiceTimelineSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("My Practice")
+                .font(ContinuoTheme.rounded(20, weight: .semibold))
+                .foregroundColor(ContinuoTheme.charcoal)
+
+            VStack(spacing: 0) {
+                ForEach(Array(practiceEntries.enumerated()), id: \.element.id) { idx, entry in
+                    CoachPracticeTimelineRow(
+                        entry: entry,
+                        isLast: idx == practiceEntries.count - 1,
+                        onDelete: {
+                            CoachPracticeService.shared.delete(entryId: entry.id, coachId: coachId)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     private var coachCode: String {
         String((auth.firebaseUser?.uid ?? "").prefix(6)).uppercased()
     }
@@ -143,6 +180,177 @@ struct CoachClientsView: View {
         listener = AssignmentService.shared.clientsListener(coachId: uid) { items in
             clients = items
         }
+    }
+}
+
+// MARK: - Practice timeline row
+
+struct CoachPracticeTimelineRow: View {
+    let entry: CoachPracticeEntry
+    let isLast: Bool
+    var onDelete: (() -> Void)? = nil
+
+    @State private var swipeOffset: CGFloat = 0
+    private let deleteWidth: CGFloat = 68
+
+    private var practice: CoachPractice? {
+        CoachPractice.catalog.first { $0.id == entry.practiceId }
+    }
+
+    private var orderedResponses: [(prompt: String, answer: String)] {
+        guard let practice else {
+            return entry.responses.compactMap { k, v in
+                v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (k, v)
+            }
+        }
+        switch practice.type {
+        case .questionList:
+            let keys = [
+                "Why is this question valuable to you?",
+                "In what context or with whom do you want to try it next time?"
+            ]
+            return keys.compactMap { key in
+                guard let val = entry.responses[key],
+                      !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else { return nil }
+                return (key, val)
+            }
+        case .reflectionForm(let prompts):
+            return prompts.compactMap { prompt in
+                guard let val = entry.responses[prompt],
+                      !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else { return nil }
+                return (prompt, val)
+            }
+        case .comingSoon:
+            return []
+        }
+    }
+
+    private var accentColor: Color {
+        practice?.categoryColor ?? ContinuoTheme.sunYellow
+    }
+
+    private var cardBg: Color {
+        practice?.cardColor ?? Color.white.opacity(0.6)
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            if onDelete != nil {
+                Button {
+                    HapticFeedback.medium()
+                    withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
+                    onDelete?()
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "trash.fill").font(.system(size: 16))
+                        Text("Delete").font(ContinuoTheme.rounded(10, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(width: deleteWidth)
+                    .frame(maxHeight: .infinity)
+                }
+                .background(Color.red.opacity(0.82))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .opacity(swipeOffset < -8 ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: swipeOffset)
+            }
+
+            rowContent
+                .offset(x: swipeOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 15, coordinateSpace: .local)
+                        .onChanged { val in
+                            guard onDelete != nil, val.translation.width < 0 else { return }
+                            swipeOffset = max(val.translation.width, -deleteWidth)
+                        }
+                        .onEnded { val in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                swipeOffset = val.translation.width < -(deleteWidth / 2) ? -deleteWidth : 0
+                            }
+                        }
+                )
+                .onTapGesture {
+                    if swipeOffset < 0 {
+                        withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
+                    }
+                }
+        }
+        .clipped()
+    }
+
+    private var rowContent: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Timeline column
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(accentColor.opacity(0.14))
+                        .frame(width: 36, height: 36)
+                    Text(entry.practiceEmoji)
+                        .font(.system(size: 16))
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(ContinuoTheme.charcoal.opacity(0.1))
+                        .frame(width: 1.5)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+
+            // Content column
+            VStack(alignment: .leading, spacing: 6) {
+                Text(entry.practiceTitle)
+                    .font(ContinuoTheme.rounded(14, weight: .medium))
+                    .foregroundColor(ContinuoTheme.charcoal)
+
+                // Question label (for question-list type)
+                if let q = entry.questionText, !q.isEmpty {
+                    Text(q)
+                        .font(ContinuoTheme.rounded(13, weight: .semibold))
+                        .foregroundColor(accentColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Inline prompt → answer pairs
+                if !orderedResponses.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(orderedResponses.indices, id: \.self) { idx in
+                            let pair = orderedResponses[idx]
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(pair.prompt)
+                                    .font(ContinuoTheme.rounded(11, weight: .semibold))
+                                    .foregroundColor(accentColor.opacity(0.8))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(pair.answer)
+                                    .font(ContinuoTheme.rounded(13))
+                                    .foregroundColor(ContinuoTheme.charcoal.opacity(0.85))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if idx < orderedResponses.count - 1 {
+                                Divider().opacity(0.4)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(cardBg.opacity(0.6))
+                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: "EDE8E0"), lineWidth: 1))
+                    )
+                }
+
+                Text(entry.date, style: .relative)
+                    .font(.caption2)
+                    .foregroundColor(ContinuoTheme.textLight)
+            }
+            .padding(.top, 8)
+            .padding(.bottom, isLast ? 0 : 22)
+        }
+        .contentShape(Rectangle())
     }
 }
 
