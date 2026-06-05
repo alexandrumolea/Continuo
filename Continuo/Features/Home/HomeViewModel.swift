@@ -13,6 +13,7 @@ final class HomeViewModel: ObservableObject {
     @Published var mindfulnessMinutesToday: Int = 0
     @Published var goals: [Goal] = []
     @Published var coachingSessions: [CoachingSession] = []
+    @Published var pendingFeedbackForms: [FeedbackForm] = []
 
     /// The date the user has selected in the calendar strip (drives Thread + practice card state)
     @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date()) {
@@ -29,6 +30,7 @@ final class HomeViewModel: ObservableObject {
     private var mindfulnessReg: ListenerRegistration?
     private var goalReg: ListenerRegistration?
     private var sessionsReg: ListenerRegistration?
+    private var feedbackReg: ListenerRegistration?
     private var activeUserId: String?
     /// The dateKey the practiceReg listener was created for — used to detect day rollover
     private var practiceListenerDateKey: String = ""
@@ -47,6 +49,11 @@ final class HomeViewModel: ObservableObject {
             if isClient && assignmentReg == nil {
                 assignmentReg = AssignmentService.shared.clientAssignmentsListener(clientId: userId) { [weak self] in
                     self?.assignments = $0
+                }
+            }
+            if isClient && feedbackReg == nil {
+                feedbackReg = FeedbackService.shared.pendingFormsListener(clientId: userId) { [weak self] in
+                    self?.pendingFeedbackForms = $0
                 }
             }
             // Recreate practice listener if not yet created OR if the day has rolled over
@@ -100,6 +107,10 @@ final class HomeViewModel: ObservableObject {
             sessionsReg = CoachingSessionService.shared.sessionsListener(userId: userId) { [weak self] in
                 self?.coachingSessions = $0
             }
+            feedbackReg?.remove()
+            feedbackReg = FeedbackService.shared.pendingFormsListener(clientId: userId) { [weak self] in
+                self?.pendingFeedbackForms = $0
+            }
         }
     }
 
@@ -115,6 +126,7 @@ final class HomeViewModel: ObservableObject {
         mindfulnessReg?.remove()
         goalReg?.remove()
         sessionsReg?.remove()
+        feedbackReg?.remove()
     }
 
     // MARK: - Private helpers

@@ -1,12 +1,18 @@
 import SwiftUI
 import FirebaseFirestore
 
-// MARK: - Practice type
+// MARK: - Supporting types
+
+struct CoachQuestionCategory: Identifiable {
+    let id: String          // kebab-case slug
+    let name: String
+    let questions: [String]
+}
 
 enum CoachPracticeType {
-    case questionList([String])
+    case questionRandomizer([String])
+    case categoryRandomizer([CoachQuestionCategory])
     case reflectionForm([String])
-    case comingSoon
 }
 
 // MARK: - Practice model
@@ -22,6 +28,8 @@ struct CoachPractice: Identifiable {
     let type: CoachPracticeType
 
     static let catalog: [CoachPractice] = [
+
+        // ── Setting Up the Relationship ──────────────────────────────────────
         CoachPractice(
             id: "coaching_contract_relationship",
             title: "Setting Up the Relationship",
@@ -29,8 +37,8 @@ struct CoachPractice: Identifiable {
             category: "A Good Coaching Contract",
             categoryColor: Color(hex: "2E7DD1"),
             cardColor: Color(hex: "E8F2FD"),
-            subtitle: "Explore questions that strengthen the coaching alliance.",
-            type: .questionList([
+            subtitle: "Highlight a question to use in building the coaching alliance.",
+            type: .questionRandomizer([
                 "What are your needs in a relationship?",
                 "What is important to you in a coaching relationship?",
                 "How do we know our relationship is successful?",
@@ -47,6 +55,8 @@ struct CoachPractice: Identifiable {
                 "Considering our differences (in age, ethnicity, sex) — how do you think this could influence our coaching process?"
             ])
         ),
+
+        // ── Setting Up the Session ───────────────────────────────────────────
         CoachPractice(
             id: "coaching_contract_session",
             title: "Setting Up the Session",
@@ -54,9 +64,191 @@ struct CoachPractice: Identifiable {
             category: "A Good Coaching Contract",
             categoryColor: Color(hex: "4E7040"),
             cardColor: Color(hex: "EBF3E6"),
-            subtitle: "Questions to open and frame each coaching session.",
-            type: .comingSoon
+            subtitle: "Highlight a question to open and frame your next session.",
+            type: .questionRandomizer([
+                "If this session brought you a significant progress, what would that be?",
+                "Imagine this session brought you exactly what you needed. You look back at it and you are really happy we had this conversation. How would you recognize that?",
+                "What do you notice differently?",
+                "How does the ideal solution look for you?",
+                "Magic wand: If you had a magic wand and could do anything, what would you do? If you could create the situation exactly as you want it, how would you rearrange things?",
+                "How will you recognize that this conversation has been useful for you?",
+                "What do you want to achieve by the end of this session?",
+                "What would need to happen for you by the end of this conversation so that you feel you've taken an important step toward your goal?",
+                "What is important today in our session? What would become possible? And specifically — what is an outcome you would like to take away from this session?",
+                "What is a current specific situation that perfectly reflects the subject you want to work on today?",
+                "What is one concrete thing you want to get out of this conversation?",
+                "Let's suppose that at some point from now on, things work out very well for you. What would you be doing differently then?",
+                "Travel to the future: Let's suppose that a year from now, you look back and smile — with gratitude — thinking about how easily you resolved this situation for good. You realize this session was a complete breakthrough for you. What happened in it that managed to completely shift your direction?",
+                "Six months have passed and you are perfectly satisfied. Can you describe what things look like?",
+                "Let's suppose you succeeded and are now truly at your best. What do others recognize in you?",
+                "What does a truly good outcome look like?",
+                "How do we measure success?",
+                "How do we know / recognize that we've arrived there?",
+                "You wake up and suddenly this goal is achieved. What do you notice that's different? What do others notice?",
+                "How would this situation look if it were already solved?",
+                "What do you truly truly want in this situation?",
+                "What achievement would fill you with joy?",
+                "What topic are we discussing and what deadline would be appropriate?",
+                "Imagine you've already made progress. What benefits will that bring you?",
+                "What is your intention for this conversation? (Coach adds a synthesis: \"So, this? Please correct me if I'm wrong.\")"
+            ])
         ),
+
+        // ── Perspective Change ───────────────────────────────────────────────
+        CoachPractice(
+            id: "perspective_change",
+            title: "Perspective Change",
+            emoji: "🔭",
+            category: "Coaching Toolkit",
+            categoryColor: Color(hex: "C87B3E"),
+            cardColor: Color(hex: "FEF0E6"),
+            subtitle: "Highlight a category of reframing questions to explore in your sessions.",
+            type: .categoryRandomizer([
+                CoachQuestionCategory(id: "leverage", name: "Leverage & Prioritization", questions: [
+                    "I hear that this situation feels complex. If you could resolve just one thing, which resolution would have the greatest impact on your goal?",
+                    "Looking at everything that's happening, what is the leverage point?",
+                    "If one thing shifted, what would create the greatest ripple effect?",
+                    "Which 20% of these ideas would make the biggest difference?"
+                ]),
+                CoachQuestionCategory(id: "presence", name: "Presence", questions: [
+                    "Imagine the meeting, the decision, or the people involved are all here in the room with us right now. What do you do?",
+                    "What would it mean to move from reactiveness to presence?",
+                    "What becomes available when you move from reactiveness to presence?",
+                    "What would presence look like right now?",
+                    "Can you accept yourself exactly where you are right now?"
+                ]),
+                CoachQuestionCategory(id: "higher-order", name: "Higher Order Plane", questions: [
+                    "What higher-order goal is impacted by this situation?",
+                    "How does this affect other areas of your life or other plans?",
+                    "When you step back and look at the bigger picture, what do you see?"
+                ]),
+                CoachQuestionCategory(id: "teleology", name: "Teleology", questions: [
+                    "What purpose might this situation be serving in your life right now?",
+                    "What purpose might this behaviour be serving in your life right now?",
+                    "What is the growth opportunity for you here?",
+                    "What is this situation asking from you?"
+                ]),
+                CoachQuestionCategory(id: "responsibility", name: "Responsibility & Agency", questions: [
+                    "What is 100% within your control?",
+                    "Whose responsibility is it to resolve this situation?",
+                    "What is your part?",
+                    "In what ways are you contributing to this situation?",
+                    "What would it mean to stop contributing?"
+                ]),
+                CoachQuestionCategory(id: "assumptions", name: "Assumptions & Meaning-Making", questions: [
+                    "What assumptions might you be making that you're not yet aware of?",
+                    "How are those assumptions creating what you observe?",
+                    "What new possibilities could you invent?",
+                    "What made you believe this?",
+                    "If this is what's visible on the surface, what might be underneath?"
+                ]),
+                CoachQuestionCategory(id: "perspective-shifts", name: "Perspective Shifts", questions: [
+                    "If you became the person or situation causing your stress, how would things look from there?",
+                    "If you were a fly on the wall, what would you notice?",
+                    "What would you do differently with that perspective?",
+                    "If this situation happened at home with your spouse or child, how would it look?"
+                ]),
+                CoachQuestionCategory(id: "inside-out", name: "Inside-Out / Outside-In", questions: [
+                    "How is what you're experiencing internally reflected in your external world?",
+                    "How does what is happening externally affect what is happening internally?",
+                    "If someone observed your life from the outside, how would they notice what is happening inside you?",
+                    "Where do you notice alignment between your inner and outer worlds?",
+                    "Where do you notice a gap?",
+                    "What would greater alignment look like?"
+                ]),
+                CoachQuestionCategory(id: "emotions", name: "Emotions & Compassion", questions: [
+                    "How does this make you feel?",
+                    "How is this showing up inside of you?",
+                    "What would it mean to meet your scared part with compassion?",
+                    "If sadness, fear, anger, or joy were perfect indicators, what would they be telling you?"
+                ]),
+                CoachQuestionCategory(id: "mind-heart-gut", name: "Mind – Heart – Gut", questions: [
+                    "What does your mind say?",
+                    "What does your heart say?",
+                    "What does your gut say?"
+                ]),
+                CoachQuestionCategory(id: "resources", name: "Resources & Strengths", questions: [
+                    "What gives you confidence that this goal is achievable?",
+                    "What do you know about yourself that reassures you that you can handle this?",
+                    "Tell me about a time when you achieved something similar.",
+                    "What exactly did you do?",
+                    "How did you resolve a similar situation in the past?",
+                    "What strengths do your family and friends appreciate in you?",
+                    "How could you use those strengths here?",
+                    "What personal qualities will help you achieve the outcome you want?",
+                    "What resources do you see in yourself?",
+                    "What resources do others see in you?",
+                    "What resources do I see in you?"
+                ]),
+                CoachQuestionCategory(id: "patterns", name: "Patterns & Awareness", questions: [
+                    "Where else in your life do you see this pattern?",
+                    "What does this situation teach you about yourself?"
+                ]),
+                CoachQuestionCategory(id: "identity", name: "Identity", questions: [
+                    "Who do you want to be in this situation?",
+                    "Who do you want to become through this experience?",
+                    "What does a person like that do?"
+                ]),
+                CoachQuestionCategory(id: "metaphor", name: "Metaphor & Symbolic Work", questions: [
+                    "If this situation were a metaphor, what would it be?",
+                    "A metaphor comes to mind as I listen. Would you like to explore it together?",
+                    "How does it look from your perspective?",
+                    "If this confusion existed outside of you, what would it look like?"
+                ]),
+                CoachQuestionCategory(id: "shadow", name: "Shadow & Avoidance", questions: [
+                    "What might you be hiding from yourself or others?",
+                    "What are you trying to avoid?",
+                    "If your \"nasty self\" showed up, what would it do differently?"
+                ]),
+                CoachQuestionCategory(id: "systems", name: "Systems Thinking", questions: [
+                    "How are you coordinating your efforts with others?",
+                    "What communication channels exist?",
+                    "How well are they functioning?",
+                    "How does information flow?",
+                    "Looking at the whole system, where is the leverage point?",
+                    "If that person were standing here in your place, what would they say about this situation?",
+                    "Who is supporting you in this situation?",
+                    "Who could help you move this forward?",
+                    "Who wants you to succeed?",
+                    "What conversations are missing from your support system?"
+                ]),
+                CoachQuestionCategory(id: "possibilities", name: "Possibilities & Vision", questions: [
+                    "What is the best possible outcome?",
+                    "What positive consequences might emerge when you achieve your goal?",
+                    "Who else benefits, and how?",
+                    "What would this look like at maximum potential?"
+                ]),
+                CoachQuestionCategory(id: "consequences", name: "Consequences & Choice", questions: [
+                    "What if nothing changed?",
+                    "If nothing changed over the next six months, what would happen?",
+                    "What is the cost of staying exactly where you are?",
+                    "What benefits are you getting from staying exactly where you are?",
+                    "What would become possible if this changed?"
+                ]),
+                CoachQuestionCategory(id: "action", name: "Action & Progress", questions: [
+                    "What have you already accomplished?",
+                    "What would indicate progress?",
+                    "How will you track progress?",
+                    "When would be a good time to take the first step?"
+                ]),
+                CoachQuestionCategory(id: "partnership", name: "Partnership", questions: [
+                    "What could I do in this conversation to make it feel like a constructive partnership?",
+                    "What can we change in our conversation right now to create more of what you need (more presence, teamwork, challenge, clarity, focus, safety, or anything else that feels missing in the relationship)?",
+                    "How are things going so far?",
+                    "What is missing from our conversation right now?",
+                    "What would make this conversation more useful for you at this moment?"
+                ]),
+                CoachQuestionCategory(id: "journey", name: "Journey & Appreciation", questions: [
+                    "When did this journey begin?",
+                    "Where did you start?",
+                    "How far have you come?",
+                    "What has worked best so far?",
+                    "Who would you like to thank when you reach your goal?"
+                ])
+            ])
+        ),
+
+        // ── Session Reflection ───────────────────────────────────────────────
         CoachPractice(
             id: "session_reflection",
             title: "Session Reflection",
@@ -83,8 +275,9 @@ struct CoachPracticeEntry: Identifiable {
     var practiceId: String
     var practiceTitle: String
     var practiceEmoji: String
-    var questionText: String?       // set for question-list type
-    var responses: [String: String] // prompt → answer
+    var questionText: String?        // highlighted question, or category name
+    var categoryQuestions: [String]? // questions in highlighted category (Perspective Change)
+    var responses: [String: String]  // prompt → answer (reflection form only)
     var createdAt: Timestamp
 
     var date: Date { createdAt.dateValue() }

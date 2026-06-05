@@ -13,10 +13,6 @@ struct CoachClientsView: View {
     @State private var clientForAssignment: ContinuoUser?
     @State private var clientForNotes: ContinuoUser?
 
-    // Practice timeline
-    @State private var practiceEntries: [CoachPracticeEntry] = []
-    @State private var practiceListener: ListenerRegistration?
-
     private var coachId: String { auth.firebaseUser?.uid ?? "" }
 
     var body: some View {
@@ -29,9 +25,6 @@ struct CoachClientsView: View {
                     VStack(spacing: 20) {
                         coachCodeCard
                         clientsSection
-                        if !practiceEntries.isEmpty {
-                            practiceTimelineSection
-                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
@@ -40,16 +33,8 @@ struct CoachClientsView: View {
             }
             .navigationTitle("My Clients")
             .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                loadClients()
-                practiceListener = CoachPracticeService.shared.recentEntriesListener(coachId: coachId) {
-                    practiceEntries = $0
-                }
-            }
-            .onDisappear {
-                listener?.remove()
-                practiceListener?.remove()
-            }
+            .onAppear { loadClients() }
+            .onDisappear { listener?.remove() }
 
             // ── Sheets ──
             .sheet(item: $clientForSession) { client in
@@ -149,28 +134,6 @@ struct CoachClientsView: View {
         }
     }
 
-    // MARK: - Practice timeline
-
-    private var practiceTimelineSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("My Practice")
-                .font(ContinuoTheme.rounded(20, weight: .semibold))
-                .foregroundColor(ContinuoTheme.charcoal)
-
-            VStack(spacing: 0) {
-                ForEach(Array(practiceEntries.enumerated()), id: \.element.id) { idx, entry in
-                    CoachPracticeTimelineRow(
-                        entry: entry,
-                        isLast: idx == practiceEntries.count - 1,
-                        onDelete: {
-                            CoachPracticeService.shared.delete(entryId: entry.id, coachId: coachId)
-                        }
-                    )
-                }
-            }
-        }
-    }
-
     private var coachCode: String {
         String((auth.firebaseUser?.uid ?? "").prefix(6)).uppercased()
     }
@@ -197,33 +160,14 @@ struct CoachPracticeTimelineRow: View {
         CoachPractice.catalog.first { $0.id == entry.practiceId }
     }
 
+    /// Ordered prompt → answer pairs for reflection-form entries.
     private var orderedResponses: [(prompt: String, answer: String)] {
-        guard let practice else {
-            return entry.responses.compactMap { k, v in
-                v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (k, v)
-            }
-        }
-        switch practice.type {
-        case .questionList:
-            let keys = [
-                "Why is this question valuable to you?",
-                "In what context or with whom do you want to try it next time?"
-            ]
-            return keys.compactMap { key in
-                guard let val = entry.responses[key],
-                      !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { return nil }
-                return (key, val)
-            }
-        case .reflectionForm(let prompts):
-            return prompts.compactMap { prompt in
-                guard let val = entry.responses[prompt],
-                      !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { return nil }
-                return (prompt, val)
-            }
-        case .comingSoon:
-            return []
+        guard case .reflectionForm(let prompts) = practice?.type else { return [] }
+        return prompts.compactMap { prompt in
+            guard let val = entry.responses[prompt],
+                  !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return nil }
+            return (prompt, val)
         }
     }
 
@@ -300,21 +244,69 @@ struct CoachPracticeTimelineRow: View {
             }
 
             // Content column
-            VStack(alignment: .leading, spacing: 6) {
-                Text(entry.practiceTitle)
-                    .font(ContinuoTheme.rounded(14, weight: .medium))
-                    .foregroundColor(ContinuoTheme.charcoal)
+            VStack(alignment: .leading, spacing: 8) {
 
-                // Question label (for question-list type)
-                if let q = entry.questionText, !q.isEmpty {
-                    Text(q)
-                        .font(ContinuoTheme.rounded(13, weight: .semibold))
-                        .foregroundColor(accentColor)
-                        .fixedSize(horizontal: false, vertical: true)
+                // Practice title + relative time
+                HStack {
+                    Text(entry.practiceTitle)
+                        .font(ContinuoTheme.rounded(14, weight: .medium))
+                        .foregroundColor(ContinuoTheme.charcoal)
+                    Spacer()
+                    Text(entry.date, style: .relative)
+                        .font(.caption2)
+                        .foregroundColor(ContinuoTheme.textLight)
                 }
 
-                // Inline prompt → answer pairs
-                if !orderedResponses.isEmpty {
+                // ── Category highlight (Perspective Change) ─────────────
+                if let qs = entry.categoryQuestions, !qs.isEmpty,
+                   let categoryName = entry.questionText {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(categoryName)
+                            .font(ContinuoTheme.rounded(14, weight: .bold))
+                            .foregroundColor(accentColor)
+
+                        Divider().opacity(0.35)
+
+                        VStack(alignment: .leading, spacing: 7) {
+                            ForEach(qs.indices, id: \.self) { i in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("·")
+                                        .font(ContinuoTheme.rounded(14, weight: .bold))
+                                        .foregroundColor(accentColor.opacity(0.5))
+                                    Text(qs[i])
+                                        .font(ContinuoTheme.rounded(13))
+                                        .foregroundColor(ContinuoTheme.charcoal.opacity(0.85))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(cardBg.opacity(0.6))
+                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: "EDE8E0"), lineWidth: 1))
+                    )
+
+                // ── Single-question highlight ────────────────────────────
+                } else if let q = entry.questionText, !q.isEmpty, orderedResponses.isEmpty {
+                    Text(q)
+                        .font(ContinuoTheme.rounded(14))
+                        .foregroundColor(ContinuoTheme.charcoal.opacity(0.88))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(cardBg.opacity(0.6))
+                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                    .stroke(accentColor.opacity(0.2), lineWidth: 1))
+                        )
+
+                // ── Reflection-form entries ──────────────────────────────
+                } else if !orderedResponses.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(orderedResponses.indices, id: \.self) { idx in
                             let pair = orderedResponses[idx]
@@ -342,10 +334,6 @@ struct CoachPracticeTimelineRow: View {
                                 .stroke(Color(hex: "EDE8E0"), lineWidth: 1))
                     )
                 }
-
-                Text(entry.date, style: .relative)
-                    .font(.caption2)
-                    .foregroundColor(ContinuoTheme.textLight)
             }
             .padding(.top, 8)
             .padding(.bottom, isLast ? 0 : 22)

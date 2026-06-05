@@ -16,9 +16,9 @@ struct GrowthView: View {
     @State private var showAllBadges = false
 
     // Coach-only state
-    @State private var coachClients: [ContinuoUser] = []
-    @State private var clientsListener: ListenerRegistration?
     @State private var selectedCoachPractice: CoachPractice? = nil
+    @State private var coachPracticeEntries: [CoachPracticeEntry] = []
+    @State private var coachPracticeListener: ListenerRegistration?
 
     private var totalGP: Int          { auth.profile?.totalGP          ?? 0 }
     private var isCoach: Bool         { auth.profile?.role == .coach }
@@ -64,8 +64,8 @@ struct GrowthView: View {
 
                 guard let uid = auth.firebaseUser?.uid else { return }
                 if isCoach {
-                    clientsListener = AssignmentService.shared.clientsListener(coachId: uid) {
-                        coachClients = $0
+                    coachPracticeListener = CoachPracticeService.shared.recentEntriesListener(coachId: uid) {
+                        coachPracticeEntries = $0
                     }
                 } else {
                     vm.startBadgesListener(userId: uid)
@@ -82,7 +82,7 @@ struct GrowthView: View {
             }
             .onDisappear {
                 assignmentListener?.remove()
-                clientsListener?.remove()
+                coachPracticeListener?.remove()
                 scoresListener?.remove()
                 vm.stopBadgesListener()
             }
@@ -190,13 +190,15 @@ struct GrowthView: View {
     private var coachGrowthContent: some View {
         VStack(alignment: .leading, spacing: 40) {
             getInspiredSection
-            clientProgressSection
+            if !coachPracticeEntries.isEmpty {
+                coachPracticeTimelineSection
+            }
         }
     }
 
     private var getInspiredSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Get Inspired")
+            Text("Coaching Toolkit")
                 .font(ContinuoTheme.rounded(20, weight: .semibold))
                 .foregroundColor(ContinuoTheme.charcoal)
 
@@ -204,7 +206,6 @@ struct GrowthView: View {
                 HStack(spacing: 14) {
                     ForEach(CoachPractice.catalog) { practice in
                         CoachPracticeCard(practice: practice) {
-                            if case .comingSoon = practice.type { return }
                             selectedCoachPractice = practice
                         }
                     }
@@ -216,27 +217,24 @@ struct GrowthView: View {
         }
     }
 
-    private var clientProgressSection: some View {
+    private var coachPracticeTimelineSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Client Progress")
+            Text("My Practice")
                 .font(ContinuoTheme.rounded(20, weight: .semibold))
                 .foregroundColor(ContinuoTheme.charcoal)
 
-            if coachClients.isEmpty {
-                GlassCard {
-                    VStack(spacing: 12) {
-                        Text("👥").font(.system(size: 40))
-                        Text("No clients connected yet.\nShare your coach code to get started.")
-                            .font(ContinuoTheme.rounded(14))
-                            .foregroundColor(ContinuoTheme.textMedium)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                }
-            } else {
-                ForEach(coachClients) { client in
-                    CoachClientProgressCard(client: client)
+            VStack(spacing: 0) {
+                ForEach(Array(coachPracticeEntries.enumerated()), id: \.element.id) { idx, entry in
+                    CoachPracticeTimelineRow(
+                        entry: entry,
+                        isLast: idx == coachPracticeEntries.count - 1,
+                        onDelete: {
+                            CoachPracticeService.shared.delete(
+                                entryId: entry.id,
+                                coachId: auth.firebaseUser?.uid ?? ""
+                            )
+                        }
+                    )
                 }
             }
         }
@@ -248,12 +246,10 @@ struct GrowthView: View {
     private func coachPracticeSheet(for practice: CoachPractice) -> some View {
         let coachId = auth.firebaseUser?.uid ?? ""
         switch practice.type {
-        case .questionList(let questions):
-            CoachQuestionListView(practice: practice, coachId: coachId, questions: questions)
+        case .questionRandomizer, .categoryRandomizer:
+            CoachQuestionListView(practice: practice, coachId: coachId)
         case .reflectionForm(let prompts):
             CoachSessionReflectionView(practice: practice, coachId: coachId, prompts: prompts)
-        case .comingSoon:
-            EmptyView()
         }
     }
 

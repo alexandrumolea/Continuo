@@ -268,6 +268,15 @@ struct HomeView: View {
                 userId: auth.firebaseUser?.uid ?? ""
             )
 
+            // Feedback forms — pending requests from coach
+            ForEach(vm.pendingFeedbackForms) { form in
+                FeedbackFormCard(
+                    form: form,
+                    clientName: auth.profile?.displayName ?? "",
+                    userId: auth.firebaseUser?.uid ?? ""
+                )
+            }
+
             // Assignments — only when there are any
             ForEach(vm.assignments) { assignment in
                 SwipeableAssignmentCard(

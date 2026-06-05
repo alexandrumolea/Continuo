@@ -19,14 +19,6 @@ struct CoachPracticeCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if case .comingSoon = practice.type {
-                        Text("Soon")
-                            .font(ContinuoTheme.rounded(10, weight: .semibold))
-                            .foregroundColor(practice.categoryColor)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(practice.categoryColor.opacity(0.12)))
-                    }
                 }
 
                 Spacer(minLength: 12)
@@ -40,7 +32,7 @@ struct CoachPracticeCard: View {
                 Spacer(minLength: 16)
 
                 HStack(spacing: 8) {
-                    Text("Get Inspired")
+                    Text("Coaching Toolkit")
                         .font(ContinuoTheme.rounded(11))
                         .foregroundColor(ContinuoTheme.charcoal.opacity(0.5))
                     Spacer()

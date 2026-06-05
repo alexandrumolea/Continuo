@@ -23,6 +23,13 @@ struct CoachClientActivityView: View {
     @State private var hasNotes = false
     @State private var showNotes = false
 
+    // Feedback
+    @State private var feedbackForms: [FeedbackForm] = []
+    @State private var feedbackResponses: [FeedbackResponse] = []
+    @State private var feedbackFormsListener: ListenerRegistration?
+    @State private var feedbackResponsesListener: ListenerRegistration?
+    @State private var showSendFeedback = false
+
     private let accent = Color(hex: "6E443C")
 
     var body: some View {
@@ -79,7 +86,10 @@ struct CoachClientActivityView: View {
                         }
                     }
 
-                    // ── 4. Assignments ──
+                    // ── 4. Feedback ──
+                    feedbackSection
+
+                    // ── 5. Assignments ──
                     if !assignments.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Assignments")
@@ -117,7 +127,16 @@ struct CoachClientActivityView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .onDisappear { checkNotes() }   // refresh badge after editing
+            .onDisappear { checkNotes() }
+        }
+        .sheet(isPresented: $showSendFeedback) {
+            SendFeedbackFormView(
+                coachId: coachId,
+                clientId: client.id ?? "",
+                clientName: client.displayName
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -163,6 +182,68 @@ struct CoachClientActivityView: View {
 
     // MARK: - Helpers
 
+    // MARK: - Feedback section
+
+    @ViewBuilder
+    private var feedbackSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Feedback")
+                    .font(ContinuoTheme.rounded(18, weight: .semibold))
+                    .foregroundColor(ContinuoTheme.charcoal)
+                Spacer()
+                HStack(spacing: 8) {
+                    // Dashboard link
+                    NavigationLink(destination: FeedbackDashboardView(coachId: coachId)) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "chart.bar.fill").font(.system(size: 12, weight: .bold))
+                            Text("Dashboard").font(ContinuoTheme.rounded(12, weight: .semibold))
+                        }
+                        .foregroundColor(Color(hex: "2E7DD1"))
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Capsule()
+                            .fill(Color(hex: "2E7DD1").opacity(0.10))
+                            .overlay(Capsule().stroke(Color(hex: "2E7DD1").opacity(0.2), lineWidth: 1)))
+                    }
+                    .buttonStyle(.plain)
+
+                    // Send new form button
+                    Button { showSendFeedback = true } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "plus").font(.system(size: 12, weight: .bold))
+                            Text("Send Form").font(ContinuoTheme.rounded(12, weight: .semibold))
+                        }
+                        .foregroundColor(ContinuoTheme.terracotta)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Capsule()
+                            .fill(ContinuoTheme.terracotta.opacity(0.10))
+                            .overlay(Capsule().stroke(ContinuoTheme.terracotta.opacity(0.2), lineWidth: 1)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 8)
+
+            if feedbackForms.isEmpty {
+                GlassCard {
+                    HStack(spacing: 12) {
+                        Text("💬").font(.system(size: 28))
+                        Text("No feedback forms sent yet.")
+                            .font(ContinuoTheme.rounded(14))
+                            .foregroundColor(ContinuoTheme.textMedium)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+            } else {
+                ForEach(feedbackForms) { form in
+                    let response = feedbackResponses.first { $0.formId == form.id }
+                    FeedbackFormRow(form: form, response: response)
+                }
+            }
+        }
+    }
+
     private func completionsFor(_ assignment: Assignment) -> [AssignmentCompletion] {
         completions
             .filter { $0.assignmentId == assignment.id }
@@ -186,6 +267,13 @@ struct CoachClientActivityView: View {
             sharedGoals = $0
         }
 
+        feedbackFormsListener = FeedbackService.shared.sentFormsListener(
+            coachId: coachId, clientId: clientId
+        ) { feedbackForms = $0 }
+        feedbackResponsesListener = FeedbackService.shared.responsesListener(
+            coachId: coachId, clientId: clientId
+        ) { feedbackResponses = $0 }
+
         checkNotes()
     }
 
@@ -194,6 +282,8 @@ struct CoachClientActivityView: View {
         assignmentsListener?.remove()
         completionsListener?.remove()
         goalsListener?.remove()
+        feedbackFormsListener?.remove()
+        feedbackResponsesListener?.remove()
     }
 
     private func checkNotes() {

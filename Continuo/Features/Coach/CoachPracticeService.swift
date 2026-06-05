@@ -18,7 +18,8 @@ final class CoachPracticeService {
             "responses": entry.responses,
             "createdAt": entry.createdAt
         ]
-        if let q = entry.questionText { data["questionText"] = q }
+        if let q = entry.questionText        { data["questionText"]        = q }
+        if let qs = entry.categoryQuestions  { data["categoryQuestions"]   = qs }
         entriesRef(coachId: coachId).document(entry.id).setData(data)
     }
 
@@ -38,20 +39,20 @@ final class CoachPracticeService {
                 let entries: [CoachPracticeEntry] = snapshot?.documents.compactMap { doc in
                     let d = doc.data()
                     guard
-                        let id = d["id"] as? String,
-                        let practiceId = d["practiceId"] as? String,
+                        let id            = d["id"]            as? String,
+                        let practiceId    = d["practiceId"]    as? String,
                         let practiceTitle = d["practiceTitle"] as? String,
                         let practiceEmoji = d["practiceEmoji"] as? String,
-                        let responses = d["responses"] as? [String: String],
-                        let createdAt = d["createdAt"] as? Timestamp
+                        let createdAt     = d["createdAt"]     as? Timestamp
                     else { return nil }
                     return CoachPracticeEntry(
                         id: id,
                         practiceId: practiceId,
                         practiceTitle: practiceTitle,
                         practiceEmoji: practiceEmoji,
-                        questionText: d["questionText"] as? String,
-                        responses: responses,
+                        questionText: d["questionText"]            as? String,
+                        categoryQuestions: d["categoryQuestions"]  as? [String],
+                        responses: (d["responses"] as? [String: String]) ?? [:],
                         createdAt: createdAt
                     )
                 } ?? []
@@ -59,23 +60,7 @@ final class CoachPracticeService {
             }
     }
 
-    // Returns all question texts that have been reflected on for a given practice
     func delete(entryId: String, coachId: String) {
         entriesRef(coachId: coachId).document(entryId).delete()
-    }
-
-    func completedQuestionsListener(
-        coachId: String,
-        practiceId: String,
-        onChange: @escaping (Set<String>) -> Void
-    ) -> ListenerRegistration {
-        entriesRef(coachId: coachId)
-            .whereField("practiceId", isEqualTo: practiceId)
-            .addSnapshotListener { snapshot, _ in
-                let questions = Set(
-                    snapshot?.documents.compactMap { $0.data()["questionText"] as? String } ?? []
-                )
-                onChange(questions)
-            }
     }
 }
