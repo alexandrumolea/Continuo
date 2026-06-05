@@ -44,11 +44,16 @@ struct Goal: Identifiable, Codable {
     /// When true, the client's connected coach can read this goal + its reflections.
     /// Optional for backward compat — nil/false both mean private.
     var sharedWithCoach: Bool? = nil
+    /// Set to true when the goal was created by the coach and sent to the client.
+    var createdByCoach: Bool? = nil
+    /// The coachId who created this goal (only set when createdByCoach == true).
+    var coachId: String? = nil
 
     var isSharedWithCoach: Bool { sharedWithCoach == true }
+    var isFromCoach: Bool { createdByCoach == true }
 
     enum CodingKeys: String, CodingKey {
-        case id, userId, title, type, emoji, progress, createdAt, successMeasure, order, sharedWithCoach
+        case id, userId, title, type, emoji, progress, createdAt, successMeasure, order, sharedWithCoach, createdByCoach, coachId
     }
 }
 

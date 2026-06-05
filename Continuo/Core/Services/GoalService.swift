@@ -33,6 +33,12 @@ final class GoalService {
         try db.collection("goals").addDocument(from: goal)
     }
 
+    /// Coach creates a goal directly in the client's goals collection.
+    /// The goal is automatically shared with the coach and marked as coach-created.
+    func addGoalForClient(_ goal: Goal) throws {
+        try db.collection("goals").addDocument(from: goal)
+    }
+
     func updateProgress(_ goal: Goal, progress: Double) async throws {
         guard let id = goal.id else { return }
         try await db.collection("goals").document(id).updateData(["progress": progress])

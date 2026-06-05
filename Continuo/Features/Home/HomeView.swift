@@ -519,8 +519,19 @@ struct GoalCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Emoji + title
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(goal.emoji ?? goal.type.emoji)
-                        .font(.system(size: 32))
+                    HStack(alignment: .top) {
+                        Text(goal.emoji ?? goal.type.emoji)
+                            .font(.system(size: 32))
+                        Spacer()
+                        if goal.isFromCoach {
+                            Text("From coach")
+                                .font(ContinuoTheme.rounded(9, weight: .semibold))
+                                .foregroundColor(ContinuoTheme.terracotta)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(ContinuoTheme.terracotta.opacity(0.12)))
+                                .padding(.top, 2)
+                        }
+                    }
                     Text(goal.title)
                         .font(ContinuoTheme.rounded(15, weight: .bold))
                         .foregroundColor(ContinuoTheme.charcoal)

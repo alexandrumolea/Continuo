@@ -23,6 +23,9 @@ struct CoachClientActivityView: View {
     @State private var hasNotes = false
     @State private var showNotes = false
 
+    // Goals
+    @State private var showSendGoal = false
+
     // Feedback
     @State private var feedbackForms: [FeedbackForm] = []
     @State private var feedbackResponses: [FeedbackResponse] = []
@@ -67,19 +70,45 @@ struct CoachClientActivityView: View {
                     }
                     .buttonStyle(.plain)
 
-                    // ── 3. Shared Goals ──
-                    if !sharedGoals.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                    // ── 3. Goals ──
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
                             HStack(spacing: 6) {
                                 Image(systemName: "target")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(ContinuoTheme.olive)
-                                Text("Shared Goals")
+                                Text("Goals")
                                     .font(ContinuoTheme.rounded(18, weight: .semibold))
                                     .foregroundColor(ContinuoTheme.charcoal)
                             }
-                            .padding(.top, 8)
+                            Spacer()
+                            Button { showSendGoal = true } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "plus").font(.system(size: 12, weight: .bold))
+                                    Text("Send Goal").font(ContinuoTheme.rounded(12, weight: .semibold))
+                                }
+                                .foregroundColor(ContinuoTheme.olive)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(Capsule()
+                                    .fill(ContinuoTheme.olive.opacity(0.10))
+                                    .overlay(Capsule().stroke(ContinuoTheme.olive.opacity(0.25), lineWidth: 1)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.top, 8)
 
+                        if sharedGoals.isEmpty {
+                            GlassCard {
+                                HStack(spacing: 12) {
+                                    Text("🎯").font(.system(size: 26))
+                                    Text("No goals shared yet. Send one to get started.")
+                                        .font(ContinuoTheme.rounded(14))
+                                        .foregroundColor(ContinuoTheme.textMedium)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                            }
+                        } else {
                             ForEach(sharedGoals) { goal in
                                 CoachClientGoalRow(goal: goal, clientName: client.displayName)
                             }
@@ -128,6 +157,15 @@ struct CoachClientActivityView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             .onDisappear { checkNotes() }
+        }
+        .sheet(isPresented: $showSendGoal) {
+            SendGoalView(
+                coachId: coachId,
+                clientId: client.id ?? "",
+                clientName: client.displayName
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSendFeedback) {
             SendFeedbackFormView(
