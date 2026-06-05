@@ -7,8 +7,10 @@
 
 import SwiftUI
 import FirebaseCore
+import FirebaseMessaging
 import GoogleSignIn
 import UIKit
+import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -17,7 +19,31 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         configureNavigationBarAppearance()
+        setupPushNotifications()
         return true
+    }
+
+    // MARK: - APNs device token → FCM
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        print("❌ APNs registration failed: \(error.localizedDescription)")
+    }
+
+    // MARK: - Setup
+
+    private func setupPushNotifications() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        Messaging.messaging().delegate = NotificationDelegate.shared
     }
 
     private func configureNavigationBarAppearance() {

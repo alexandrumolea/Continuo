@@ -30,6 +30,10 @@ struct ContinuoUser: Identifiable, Codable {
     /// `nil` for legacy profiles created before this field existed — treated as "complete".
     var setupCompleted: Bool? = nil
 
+    // MARK: - Push Notifications
+    /// FCM device token — updated on every app launch.
+    var fcmToken: String? = nil
+
     // MARK: - Streak
     var currentStreak: Int?
     var longestStreak: Int?
@@ -43,5 +47,6 @@ struct ContinuoUser: Identifiable, Codable {
         case id, displayName, email, role, coachId, totalGP, setupCompleted
         case currentStreak, longestStreak, lastActivityDate
         case totalPracticeCount, totalCoachingCount
+        case fcmToken
     }
 }
