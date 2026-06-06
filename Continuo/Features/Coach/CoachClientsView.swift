@@ -151,10 +151,25 @@ struct CoachClientsView: View {
 struct CoachPracticeTimelineRow: View {
     let entry: CoachPracticeEntry
     let isLast: Bool
+    var coachId: String = ""
     var onDelete: (() -> Void)? = nil
 
     @State private var swipeOffset: CGFloat = 0
+    @State private var showEdit = false
     private let deleteWidth: CGFloat = 68
+
+    private var isReflection: Bool {
+        if case .reflectionForm = CoachPractice.catalog.first(where: { $0.id == entry.practiceId })?.type {
+            return true
+        }
+        return false
+    }
+
+    private var reflectionPrompts: [String] {
+        guard case .reflectionForm(let prompts) = CoachPractice.catalog.first(where: { $0.id == entry.practiceId })?.type
+        else { return [] }
+        return prompts
+    }
 
     private var practice: CoachPractice? {
         CoachPractice.catalog.first { $0.id == entry.practiceId }
@@ -218,10 +233,21 @@ struct CoachPracticeTimelineRow: View {
                 .onTapGesture {
                     if swipeOffset < 0 {
                         withAnimation(.spring(response: 0.25)) { swipeOffset = 0 }
+                    } else if isReflection {
+                        showEdit = true
                     }
                 }
         }
         .clipped()
+        .sheet(isPresented: $showEdit) {
+            CoachPracticeEntryEditView(
+                entry: entry,
+                coachId: coachId,
+                prompts: reflectionPrompts
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var rowContent: some View {
@@ -252,9 +278,16 @@ struct CoachPracticeTimelineRow: View {
                         .font(ContinuoTheme.rounded(14, weight: .medium))
                         .foregroundColor(ContinuoTheme.charcoal)
                     Spacer()
-                    Text(entry.date, style: .relative)
-                        .font(.caption2)
-                        .foregroundColor(ContinuoTheme.textLight)
+                    HStack(spacing: 8) {
+                        Text(entry.date, style: .relative)
+                            .font(.caption2)
+                            .foregroundColor(ContinuoTheme.textLight)
+                        if isReflection {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 10))
+                                .foregroundColor(ContinuoTheme.textLight)
+                        }
+                    }
                 }
 
                 // ── Category highlight (Perspective Change) ─────────────

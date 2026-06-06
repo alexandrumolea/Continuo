@@ -30,6 +30,11 @@ final class CoachClientNoteService {
         try entriesRef(coachId: coachId, clientId: clientId).addDocument(from: entry)
     }
 
+    func updateEntry(coachId: String, clientId: String, entry: CoachNoteEntry, newText: String) async throws {
+        guard let id = entry.id else { return }
+        try await entriesRef(coachId: coachId, clientId: clientId).document(id).updateData(["text": newText])
+    }
+
     func deleteEntry(coachId: String, clientId: String, entry: CoachNoteEntry) async throws {
         guard let id = entry.id else { return }
         try await entriesRef(coachId: coachId, clientId: clientId).document(id).delete()

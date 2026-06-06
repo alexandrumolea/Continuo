@@ -228,6 +228,7 @@ struct GrowthView: View {
                     CoachPracticeTimelineRow(
                         entry: entry,
                         isLast: idx == coachPracticeEntries.count - 1,
+                        coachId: auth.firebaseUser?.uid ?? "",
                         onDelete: {
                             CoachPracticeService.shared.delete(
                                 entryId: entry.id,

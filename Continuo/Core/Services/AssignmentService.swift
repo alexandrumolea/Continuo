@@ -10,6 +10,15 @@ final class AssignmentService {
         try db.collection("assignments").addDocument(from: assignment)
     }
 
+    // MARK: - Edit assignment text (coach can update title + instructions)
+    func updateAssignment(_ assignment: Assignment, title: String, description: String) async throws {
+        guard let id = assignment.id else { return }
+        try await db.collection("assignments").document(id).updateData([
+            "title":       title,
+            "description": description
+        ])
+    }
+
     // MARK: - Delete assignment
     func deleteAssignment(_ assignment: Assignment) async throws {
         guard let id = assignment.id else { return }

@@ -60,6 +60,10 @@ final class CoachPracticeService {
             }
     }
 
+    func updateEntry(entryId: String, coachId: String, responses: [String: String]) {
+        entriesRef(coachId: coachId).document(entryId).updateData(["responses": responses])
+    }
+
     func delete(entryId: String, coachId: String) {
         entriesRef(coachId: coachId).document(entryId).delete()
     }

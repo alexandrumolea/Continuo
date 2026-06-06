@@ -8,6 +8,8 @@ struct CoachAssignmentRow: View {
     let clientName: String
     let onDelete: () -> Void
 
+    @State private var showEdit = false
+
     var body: some View {
         GlassCard {
             HStack(alignment: .top, spacing: 0) {
@@ -74,8 +76,14 @@ struct CoachAssignmentRow: View {
                 }
                 .buttonStyle(.plain)
 
-                // Delete menu — sibling of NavigationLink
+                // Menu — sibling of NavigationLink
                 Menu {
+                    Button {
+                        HapticFeedback.selection()
+                        showEdit = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
                     Button(role: .destructive) {
                         HapticFeedback.medium()
                         onDelete()
@@ -90,6 +98,11 @@ struct CoachAssignmentRow: View {
                         .contentShape(Rectangle())
                 }
             }
+        }
+        .sheet(isPresented: $showEdit) {
+            AssignmentEditSheet(assignment: assignment)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -109,6 +122,8 @@ struct CoachAssignmentRow: View {
             .background(Capsule().fill(color.opacity(0.12)))
     }
 
+    // MARK: - Frequency pill
+
     private var frequencyPill: some View {
         let freq = assignment.effectiveFrequency
         let color: Color = {
@@ -125,5 +140,125 @@ struct CoachAssignmentRow: View {
             .lineLimit(1).fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(Capsule().fill(color.opacity(0.12)))
+    }
+}
+
+// MARK: - Assignment edit sheet
+
+private struct AssignmentEditSheet: View {
+    let assignment: Assignment
+
+    @State private var title: String
+    @State private var description: String
+    @State private var isSaving = false
+    @FocusState private var focused: Int?
+    @Environment(\.dismiss) private var dismiss
+
+    init(assignment: Assignment) {
+        self.assignment  = assignment
+        _title       = State(initialValue: assignment.title)
+        _description = State(initialValue: assignment.description)
+    }
+
+    private var hasChanges: Bool {
+        title.trimmingCharacters(in: .whitespacesAndNewlines) != assignment.title ||
+        description.trimmingCharacters(in: .whitespacesAndNewlines) != assignment.description
+    }
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasChanges
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                ContinuoTheme.background.ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Title
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Title")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                            TextField("Assignment title", text: $title)
+                                .font(ContinuoTheme.rounded(15))
+                                .foregroundColor(ContinuoTheme.charcoal)
+                                .padding(14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(Color.white.opacity(0.9))
+                                        .overlay(RoundedRectangle(cornerRadius: 14)
+                                            .stroke(Color(hex: "EDE8E0"), lineWidth: 1.5))
+                                )
+                                .focused($focused, equals: 0)
+                        }
+
+                        // Instructions
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Instructions")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                            TextEditor(text: $description)
+                                .font(ContinuoTheme.rounded(14))
+                                .foregroundColor(ContinuoTheme.charcoal)
+                                .frame(minHeight: 120)
+                                .focused($focused, equals: 1)
+                                .scrollContentBackground(.hidden)
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(Color.white.opacity(0.9))
+                                        .overlay(RoundedRectangle(cornerRadius: 14)
+                                            .stroke(
+                                                focused == 1 ? ContinuoTheme.terracotta.opacity(0.5) : Color(hex: "EDE8E0"),
+                                                lineWidth: 1.5))
+                                )
+                                .overlay(
+                                    Group {
+                                        if description.isEmpty {
+                                            Text("Instructions for the client…")
+                                                .font(ContinuoTheme.rounded(14))
+                                                .foregroundColor(ContinuoTheme.textLight)
+                                                .padding(20)
+                                                .allowsHitTesting(false)
+                                        }
+                                    }, alignment: .topLeading
+                                )
+                        }
+
+                        PrimaryButton(title: isSaving ? "Saving…" : "Save changes", isLoading: isSaving) {
+                            save()
+                        }
+                        .disabled(!canSave || isSaving)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("Edit Assignment")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() {
+        guard canSave else { return }
+        isSaving = true
+        Task {
+            try? await AssignmentService.shared.updateAssignment(
+                assignment,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                description: description.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            await MainActor.run {
+                HapticFeedback.success()
+                dismiss()
+            }
+        }
     }
 }

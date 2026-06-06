@@ -15,6 +15,7 @@ struct CoachClientNotesView: View {
     @State private var isLoading = true
     @State private var draft = ""
     @State private var isSending = false
+    @State private var editingEntry: CoachNoteEntry? = nil
 
     @FocusState private var composeFocused: Bool
 
@@ -73,6 +74,16 @@ struct CoachClientNotesView: View {
         }
         .onAppear { startListener() }
         .onDisappear { listener?.remove() }
+        .sheet(item: $editingEntry) { entry in
+            NoteEditSheet(
+                entry: entry,
+                coachId: coachId,
+                clientId: clientId,
+                accentColor: purple
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Header
@@ -152,6 +163,12 @@ struct CoachClientNotesView: View {
                         .foregroundColor(ContinuoTheme.textLight)
                     Spacer()
                     Menu {
+                        Button {
+                            HapticFeedback.selection()
+                            editingEntry = entry
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
                         Button(role: .destructive) {
                             HapticFeedback.medium()
                             deleteEntry(entry)
@@ -262,6 +279,87 @@ struct CoachClientNotesView: View {
         Task {
             try? await CoachClientNoteService.shared.deleteEntry(
                 coachId: coachId, clientId: clientId, entry: entry)
+        }
+    }
+}
+
+// MARK: - Note edit sheet
+
+private struct NoteEditSheet: View {
+    let entry: CoachNoteEntry
+    let coachId: String
+    let clientId: String
+    let accentColor: Color
+
+    @State private var text: String
+    @State private var isSaving = false
+    @Environment(\.dismiss) private var dismiss
+
+    init(entry: CoachNoteEntry, coachId: String, clientId: String, accentColor: Color) {
+        self.entry       = entry
+        self.coachId     = coachId
+        self.clientId    = clientId
+        self.accentColor = accentColor
+        _text = State(initialValue: entry.text)
+    }
+
+    private var hasChanges: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines) != entry.text
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                ContinuoTheme.background.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(entry.createdAt, style: .date)
+                        .font(ContinuoTheme.rounded(13))
+                        .foregroundColor(ContinuoTheme.textMedium)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
+
+                    TextEditor(text: $text)
+                        .font(ContinuoTheme.rounded(15))
+                        .foregroundColor(ContinuoTheme.charcoal)
+                        .scrollContentBackground(.hidden)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.9))
+                                .overlay(RoundedRectangle(cornerRadius: 16)
+                                    .stroke(accentColor.opacity(0.2), lineWidth: 1))
+                        )
+                        .padding(.horizontal, 20)
+
+                    PrimaryButton(title: isSaving ? "Saving…" : "Save changes", isLoading: isSaving) {
+                        save()
+                    }
+                    .disabled(!hasChanges || isSaving)
+                    .padding(.horizontal, 20)
+
+                    Spacer()
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        isSaving = true
+        Task {
+            try? await CoachClientNoteService.shared.updateEntry(
+                coachId: coachId, clientId: clientId, entry: entry, newText: trimmed)
+            await MainActor.run {
+                HapticFeedback.success()
+                dismiss()
+            }
         }
     }
 }

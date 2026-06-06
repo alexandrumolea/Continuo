@@ -29,6 +29,24 @@ struct CoachPractice: Identifiable {
 
     static let catalog: [CoachPractice] = [
 
+        // ── Session Reflection ───────────────────────────────────────────────
+        CoachPractice(
+            id: "session_reflection",
+            title: "Session Reflection",
+            emoji: "🪞",
+            category: "After Coaching",
+            categoryColor: Color(hex: "7B5EA7"),
+            cardColor: Color(hex: "F3EFFE"),
+            subtitle: "Reflect on what happened and what you're learning.",
+            type: .reflectionForm([
+                "How was the session? What was the client's subject?",
+                "What did you do well?",
+                "What did you do wrong?",
+                "If you were in the exact same situation, what would you do differently? Specifically, how would you say things?",
+                "What did you learn about yourself? How is your client's situation connected to your life?"
+            ])
+        ),
+
         // ── Setting Up the Relationship ──────────────────────────────────────
         CoachPractice(
             id: "coaching_contract_relationship",
@@ -74,7 +92,8 @@ struct CoachPractice: Identifiable {
                 "How will you recognize that this conversation has been useful for you?",
                 "What do you want to achieve by the end of this session?",
                 "What would need to happen for you by the end of this conversation so that you feel you've taken an important step toward your goal?",
-                "What is important today in our session? What would become possible? And specifically — what is an outcome you would like to take away from this session?",
+                "What is important today in our session?",
+                "What is an outcome you would like to take away from this session?",
                 "What is a current specific situation that perfectly reflects the subject you want to work on today?",
                 "What is one concrete thing you want to get out of this conversation?",
                 "Let's suppose that at some point from now on, things work out very well for you. What would you be doing differently then?",
@@ -243,26 +262,68 @@ struct CoachPractice: Identifiable {
                     "Where did you start?",
                     "How far have you come?",
                     "What has worked best so far?",
-                    "Who would you like to thank when you reach your goal?"
+                    "Who would you like to thank when you reach your goal?",
+                    "Taking a helicopter view over this issue in your life, how do you see this in the timeline of your whole life?"
                 ])
             ])
         ),
 
-        // ── Session Reflection ───────────────────────────────────────────────
+        // ── Tracking ────────────────────────────────────────────────────────
         CoachPractice(
-            id: "session_reflection",
-            title: "Session Reflection",
-            emoji: "🪞",
-            category: "After Coaching",
-            categoryColor: Color(hex: "7B5EA7"),
-            cardColor: Color(hex: "F3EFFE"),
-            subtitle: "Reflect on what happened and what you're learning.",
-            type: .reflectionForm([
-                "How was the session? What was the client's subject?",
-                "What did you do well?",
-                "What did you do wrong?",
-                "If you were in the exact same situation, what would you do differently? Specifically, how would you say things?",
-                "What did you learn about yourself? How is your client's situation connected to your life?"
+            id: "tracking",
+            title: "Tracking",
+            emoji: "📈",
+            category: "Coaching Toolkit",
+            categoryColor: Color(hex: "C87B3E"),
+            cardColor: Color(hex: "FEF0E6"),
+            subtitle: "Highlight a category of questions to monitor progress and sustain momentum.",
+            type: .categoryRandomizer([
+                CoachQuestionCategory(id: "motivation", name: "Facilitating Motivation", questions: [
+                    "Just do a simple synthesis (focusing on the process, not the content).",
+                    "You set out to... (coachee's goal) and you've been working on it for 2 weeks. We are now halfway through our coaching journey.",
+                    "If you were to self-evaluate your progress, where do you stand right now in relation to your goal?",
+                    "On a scale of 1 to 10, where are you right now in relation to your goal?"
+                ]),
+                CoachQuestionCategory(id: "reflection-learning", name: "Facilitating Reflection & Learning", questions: [
+                    "What wins have you experienced so far?",
+                    "What did you do well? What has worked well for you?",
+                    "What do you feel made the biggest difference, and you want to keep doing?",
+                    "How do you feel right now in relation to this goal?"
+                ]),
+                CoachQuestionCategory(id: "decisions", name: "Facilitating Decisions", questions: [
+                    "You mentioned you are around a 6/10. What would a 7 look like?",
+                    "What are you planning on doing next? What are your next steps?"
+                ])
+            ])
+        ),
+
+        // ── Action Planning ──────────────────────────────────────────────────
+        CoachPractice(
+            id: "action_planning",
+            title: "Action Planning",
+            emoji: "🧭",
+            category: "Coaching Toolkit",
+            categoryColor: Color(hex: "2D9B8A"),
+            cardColor: Color(hex: "E6F6F4"),
+            subtitle: "Highlight a closing question to anchor insight and next steps.",
+            type: .questionRandomizer([
+                "How would you sum up our conversation from your perspective?",
+                "What is most important to you out of everything we've been through in this conversation?",
+                "What are the key takeaways for you from this session?",
+                "Closing the loop — where are you now compared to where you started?",
+                "So, what is becoming clearer to you as a result of our discussion? What are your conclusions?",
+                "Where do you stand right now in relation to your goal?",
+                "We are approaching the end of the session — what else do you need to feel like you're moving forward with determination and energy?",
+                "What else needs to happen before the end of this session to support your goal?",
+                "What do you want to do after this session? What is your next step?",
+                "What do you plan to do next? How will you do it? When do you want to do it?",
+                "What is one risk you see? How do you plan to address it?",
+                "If there were a weak link or vulnerability in your plan, what would it be? How will you manage it?",
+                "Looking back at our conversation, what have you learned about yourself today?",
+                "I hear your insight — how will you act on it so that you make sure you integrate it in your life?",
+                "I hear your insight — what needs to change in your life or actions so that you make sure you capitalise on it?",
+                "I hear your insight — what are you going to do differently in practice with it?",
+                "What do you want to do with what you've learned? How will you do that?"
             ])
         )
     ]
