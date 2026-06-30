@@ -270,6 +270,23 @@ struct DailyPractice: Identifiable {
             competencyId: "inner_harmony"
         ),
         DailyPractice(
+            id: "yearly_goals_checkin",
+            title: "Yearly Goals Check-in",
+            emoji: "🗓️",
+            category: "Reflection",
+            categoryColor: Color(hex: "C87B3E"),
+            cardColor: Color(hex: "FEF0E6"),
+            prompts: [
+                "How do you feel about the progress you made so far this year?",
+                "What have you done well for your goals?",
+                "What did you get wrong?",
+                "What do you want to adjust going forward?",
+                "What's one thing you want to focus on for the rest of the year?"
+            ],
+            gpReward: 5,
+            competencyId: "agency"
+        ),
+        DailyPractice(
             id: "journaling",
             title: "Daily Journal",
             emoji: "📓",

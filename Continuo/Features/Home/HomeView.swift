@@ -97,6 +97,12 @@ struct HomeView: View {
                             userId: auth.firebaseUser?.uid ?? "",
                             onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
+                    } else if practice.id == "yearly_goals_checkin" {
+                        YearlyGoalsCheckInDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
                     } else {
                         DailyPracticeDetailView(
                             practice: practice,
