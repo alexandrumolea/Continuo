@@ -25,6 +25,10 @@ struct CoreView: View {
     @State private var passionsListener: ListenerRegistration?
     @State private var showMyPassions = false
 
+    @State private var missionVision: MissionVision?
+    @State private var missionVisionListener: ListenerRegistration?
+    @State private var showMissionVision = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -35,17 +39,22 @@ struct CoreView: View {
                     VStack(alignment: .leading, spacing: 24) {
 
                         // ── Header ──
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("Core")
                                 .font(ContinuoTheme.rounded(32, weight: .bold))
                                 .foregroundColor(ContinuoTheme.charcoal)
                             Text("Know yourself deeper")
-                                .font(ContinuoTheme.rounded(15))
+                                .font(ContinuoTheme.rounded(15, weight: .semibold))
                                 .foregroundColor(ContinuoTheme.terracotta.opacity(0.7))
+                            Text("You can explore the following cards with your coach or by yourself.")
+                                .font(ContinuoTheme.rounded(13))
+                                .foregroundColor(ContinuoTheme.textMedium)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.top, 16)
 
                         // ── Cards ──
+                        myMissionVisionCard
                         myValuesCard
                         myPrioritiesCard
                         myStrengthsCard
@@ -64,6 +73,7 @@ struct CoreView: View {
                 skillsListener     = PersonalSkillsService.shared.skillsListener(userId: uid)      { skills     = $0 }
                 passionsListener   = PersonalPassionsService.shared.passionsListener(userId: uid)  { passions   = $0 }
                 prioritiesListener = PrioritiesService.shared.prioritiesListener(userId: uid)      { priorities = $0 }
+                missionVisionListener = MissionVisionService.shared.listener(userId: uid)          { missionVision = $0 }
             }
             .onDisappear {
                 valuesListener?.remove()
@@ -71,6 +81,7 @@ struct CoreView: View {
                 skillsListener?.remove()
                 passionsListener?.remove()
                 prioritiesListener?.remove()
+                missionVisionListener?.remove()
             }
             .sheet(isPresented: $showMyValues) {
                 NavigationStack {
@@ -117,6 +128,82 @@ struct CoreView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showMissionVision) {
+                NavigationStack {
+                    MyMissionVisionDetailView(userId: auth.firebaseUser?.uid ?? "")
+                        .navigationTitle("My Mission & Vision")
+                        .navigationBarTitleDisplayMode(.inline)
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+        }
+    }
+
+    // MARK: - My Mission & Vision card
+
+    private var myMissionVisionCard: some View {
+        let color = Color(hex: "4F5D9F")
+        return Button { showMissionVision = true } label: {
+            GlassCard {
+                VStack(alignment: .leading, spacing: 14) {
+
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(color.opacity(0.1))
+                                .frame(width: 46, height: 46)
+                            Text("🔭")
+                                .font(.system(size: 24))
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("My Mission & Vision")
+                                .font(ContinuoTheme.rounded(17, weight: .bold))
+                                .foregroundColor(ContinuoTheme.charcoal)
+                            Text("Direction")
+                                .font(ContinuoTheme.rounded(11, weight: .medium))
+                                .foregroundColor(color)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(color.opacity(0.1)))
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(ContinuoTheme.textLight)
+                    }
+
+                    if (missionVision?.isEmpty ?? true) {
+                        emptyStateTag(text: "Tap to define your mission & vision", color: color)
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if let mission = missionVision?.mission,
+                               !mission.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                missionVisionRow(label: "Mission", text: mission, color: color)
+                            }
+                            if let vision = missionVision?.vision,
+                               !vision.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                missionVisionRow(label: "Vision", text: vision, color: color)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func missionVisionRow(label: String, text: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(ContinuoTheme.rounded(10, weight: .semibold))
+                .foregroundColor(color.opacity(0.75))
+                .kerning(0.5)
+            Text(text)
+                .font(ContinuoTheme.rounded(13, weight: .medium))
+                .foregroundColor(ContinuoTheme.charcoal)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

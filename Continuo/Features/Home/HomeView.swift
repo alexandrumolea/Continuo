@@ -91,6 +91,12 @@ struct HomeView: View {
                             userId: auth.firebaseUser?.uid ?? "",
                             onCompleted: { id in vm.completedPracticeIds.insert(id) }
                         )
+                    } else if practice.id == "mission_vision_reflection" {
+                        MissionVisionReflectionDetailView(
+                            practice: practice,
+                            userId: auth.firebaseUser?.uid ?? "",
+                            onCompleted: { id in vm.completedPracticeIds.insert(id) }
+                        )
                     } else {
                         DailyPracticeDetailView(
                             practice: practice,

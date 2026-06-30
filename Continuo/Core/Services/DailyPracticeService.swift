@@ -84,12 +84,21 @@ final class DailyPracticeService {
     // MARK: - Roll back competency points when a completion is removed
     func rollbackCompetencyPoints(userId: String, practiceId: String, points: Int) async {
         guard points > 0,
-              let competencyId = DailyPractice.catalog.first(where: { $0.id == practiceId })?.competencyId else { return }
-        try? await CompetencyService.shared.addPoints(
-            userId: userId,
-            competencyId: competencyId,
-            points: -points
-        )
+              let practice = DailyPractice.catalog.first(where: { $0.id == practiceId }) else { return }
+        if let competencyId = practice.competencyId {
+            try? await CompetencyService.shared.addPoints(
+                userId: userId,
+                competencyId: competencyId,
+                points: -points
+            )
+        }
+        if let secondary = practice.secondaryCompetencyId {
+            try? await CompetencyService.shared.addPoints(
+                userId: userId,
+                competencyId: secondary,
+                points: -points
+            )
+        }
     }
 
     // MARK: - Update responses on an existing completion
@@ -248,6 +257,14 @@ final class DailyPracticeService {
                 try? await CompetencyService.shared.addPoints(
                     userId: userId,
                     competencyId: competencyId,
+                    points: practice.gpReward
+                )
+            }
+            // Optional second competency (e.g. cognitive flexibility → social + adaptability)
+            if let secondary = practice.secondaryCompetencyId {
+                try? await CompetencyService.shared.addPoints(
+                    userId: userId,
+                    competencyId: secondary,
                     points: practice.gpReward
                 )
             }

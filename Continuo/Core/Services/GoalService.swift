@@ -57,6 +57,31 @@ final class GoalService {
         try await db.collection("goals").document(id).updateData(["successMeasure": text])
     }
 
+    /// Full edit of a goal's defining fields (used by the coach to edit a goal they sent).
+    func updateGoalDetails(_ goal: Goal, title: String, type: GoalType,
+                           emoji: String, successMeasure: String?) async throws {
+        guard let id = goal.id else { return }
+        var data: [String: Any] = [
+            "title": title,
+            "type": type.rawValue,
+            "emoji": emoji
+        ]
+        if let sm = successMeasure, !sm.isEmpty {
+            data["successMeasure"] = sm
+        } else {
+            data["successMeasure"] = FieldValue.delete()
+        }
+        try await db.collection("goals").document(id).updateData(data)
+    }
+
+    /// Live listener for a single goal document.
+    func goalListener(goalId: String, onChange: @escaping (Goal?) -> Void) -> ListenerRegistration {
+        db.collection("goals").document(goalId).addSnapshotListener { snapshot, error in
+            if let error = error { print("❌ goalListener: \(error.localizedDescription)") }
+            onChange(try? snapshot?.data(as: Goal.self))
+        }
+    }
+
     func deleteGoal(_ goal: Goal) async throws {
         guard let id = goal.id else { return }
         try await db.collection("goals").document(id).delete()

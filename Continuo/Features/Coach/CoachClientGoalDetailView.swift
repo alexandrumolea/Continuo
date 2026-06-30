@@ -1,13 +1,21 @@
 import SwiftUI
 import FirebaseFirestore
 
-/// Read-only full-page view of a shared goal — shown to the coach.
+/// Full-page view of a shared goal — shown to the coach.
+/// Coach-created goals can be edited here; client-created goals stay read-only.
 struct CoachClientGoalDetailView: View {
-    let goal: Goal
     let clientName: String
 
+    @State private var goal: Goal
     @State private var reflections: [GoalReflection] = []
     @State private var listener: ListenerRegistration?
+    @State private var goalListener: ListenerRegistration?
+    @State private var showEdit = false
+
+    init(goal: Goal, clientName: String) {
+        self.clientName = clientName
+        _goal = State(initialValue: goal)
+    }
 
     private var progressPercent: Int { Int((goal.progress * 100).rounded()) }
 
@@ -33,8 +41,27 @@ struct CoachClientGoalDetailView: View {
         }
         .navigationTitle(goal.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if goal.isFromCoach {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showEdit = true } label: {
+                        Text("Edit")
+                            .font(ContinuoTheme.rounded(15, weight: .semibold))
+                            .foregroundColor(goal.type.color)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            EditClientGoalView(goal: goal)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onAppear { startListener() }
-        .onDisappear { listener?.remove() }
+        .onDisappear {
+            listener?.remove()
+            goalListener?.remove()
+        }
     }
 
     // MARK: - Header
@@ -161,6 +188,10 @@ struct CoachClientGoalDetailView: View {
         guard let goalId = goal.id else { return }
         listener = GoalService.shared.reflectionsListener(goalId: goalId) { items in
             reflections = items
+        }
+        // Keep the goal live so edits appear immediately after saving.
+        goalListener = GoalService.shared.goalListener(goalId: goalId) { updated in
+            if let updated { goal = updated }
         }
     }
 }

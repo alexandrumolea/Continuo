@@ -45,6 +45,13 @@ final class HomeViewModel: ObservableObject {
 
         let today = todayKey()
 
+        // Pull today's mindful minutes from Apple Health on every appear/foreground,
+        // so the home card reflects sessions logged elsewhere (e.g. Apple Watch)
+        // even when the user never opens the Mindfulness card that day.
+        if isClient {
+            Task { await self.syncMindfulnessFromHealth(userId: userId) }
+        }
+
         if activeUserId == userId {
             if isClient && assignmentReg == nil {
                 assignmentReg = AssignmentService.shared.clientAssignmentsListener(clientId: userId) { [weak self] in
@@ -135,6 +142,19 @@ final class HomeViewModel: ObservableObject {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
+    }
+
+    /// Reads today's mindful minutes from HealthKit and syncs them into Firestore.
+    /// Idempotent: minutes only increase and GP is awarded once per tier, so it's
+    /// safe to call on every home appear/foreground. The Firestore listener then
+    /// pushes the updated total into `mindfulnessMinutesToday`.
+    private func syncMindfulnessFromHealth(userId: String) async {
+        guard HealthKitService.shared.isAvailable else { return }
+        let hkMinutes = await HealthKitService.shared.mindfulnessMinutesToday()
+        guard hkMinutes > 0 else { return }
+        _ = try? await DailyPracticeService.shared.updateMindfulnessTotal(
+            userId: userId, minutesToday: hkMinutes
+        )
     }
 
     private func refreshSelectedDateCompletions() async {

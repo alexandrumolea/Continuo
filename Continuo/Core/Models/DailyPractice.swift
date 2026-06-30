@@ -10,15 +10,18 @@ struct DailyPractice: Identifiable {
     let prompts: [String]
     let gpReward: Int
     let competencyId: String?   // hidden from user — awards points to this competency on completion
+    let secondaryCompetencyId: String?  // optional — awards an equal amount to a second competency
     let introMessage: String?   // optional framing paragraph shown above prompts in DailyPracticeDetailView
 
     init(id: String, title: String, emoji: String, category: String,
          categoryColor: Color, cardColor: Color, prompts: [String],
-         gpReward: Int, competencyId: String? = nil, introMessage: String? = nil) {
+         gpReward: Int, competencyId: String? = nil,
+         secondaryCompetencyId: String? = nil, introMessage: String? = nil) {
         self.id = id; self.title = title; self.emoji = emoji
         self.category = category; self.categoryColor = categoryColor
         self.cardColor = cardColor; self.prompts = prompts
         self.gpReward = gpReward; self.competencyId = competencyId
+        self.secondaryCompetencyId = secondaryCompetencyId
         self.introMessage = introMessage
     }
 
@@ -139,6 +142,55 @@ struct DailyPractice: Identifiable {
             competencyId: "social_intelligence"
         ),
         DailyPractice(
+            id: "encourage_someone",
+            title: "Encourage Someone",
+            emoji: "🌟",
+            category: "Relationships",
+            categoryColor: Color(hex: "2E7DD1"),
+            cardColor: Color(hex: "E8F2FD"),
+            prompts: [
+                "Who in your life could use some encouragement right now?",
+                "What strength or quality do you genuinely see in them?",
+                "What words of encouragement will you offer them today?",
+                "How will you share it — a message, a call, or in person?"
+            ],
+            gpReward: 5,
+            competencyId: "social_intelligence"
+        ),
+        DailyPractice(
+            id: "frustration_to_curiosity",
+            title: "Frustration into Curiosity",
+            emoji: "🔍",
+            category: "Relationships",
+            categoryColor: Color(hex: "2E7DD1"),
+            cardColor: Color(hex: "E8F2FD"),
+            prompts: [
+                "Think of a relationship that feels stuck right now. Who is it with?",
+                "What isn't working — what specifically bothers you?",
+                "If you turned that frustration into curiosity about how they see things, what question would you genuinely want to ask them?"
+            ],
+            gpReward: 5,
+            competencyId: "social_intelligence",
+            introMessage: "When a relationship feels stuck, frustration narrows our view. Curiosity opens it back up — it lets us understand how the other person thinks, instead of just reacting to what they do."
+        ),
+        DailyPractice(
+            id: "cognitive_flexibility",
+            title: "Cognitive Flexibility",
+            emoji: "🔄",
+            category: "Adaptability",
+            categoryColor: Color(hex: "2D9B8A"),
+            cardColor: Color(hex: "E6F6F4"),
+            prompts: [
+                "Think back on today — where could you have been more open to someone else's suggestion or point of view?",
+                "What made it hard to take their suggestion in that moment?",
+                "What might you understand or gain if you stayed open to their input next time?"
+            ],
+            gpReward: 5,
+            competencyId: "adaptability_quotient",
+            secondaryCompetencyId: "social_intelligence",
+            introMessage: "Cognitive flexibility grows every time we let someone else's suggestion in — not by giving up our view, but by genuinely considering theirs alongside it."
+        ),
+        DailyPractice(
             id: "releasing",
             title: "Releasing",
             emoji: "🌊",
@@ -200,6 +252,22 @@ struct DailyPractice: Identifiable {
             ],
             gpReward: 5,
             competencyId: "agency"
+        ),
+        DailyPractice(
+            id: "mission_vision_reflection",
+            title: "Mission & Vision Check-in",
+            emoji: "🔭",
+            category: "Purpose",
+            categoryColor: Color(hex: "4F5D9F"),
+            cardColor: Color(hex: "ECEEF8"),
+            prompts: [
+                "How present was your mission in your actions?",
+                "Where did your mission show up — or go missing?",
+                "How satisfied are you with your progress toward your vision?",
+                "What's one step toward your vision you can take next?"
+            ],
+            gpReward: 5,
+            competencyId: "inner_harmony"
         ),
         DailyPractice(
             id: "journaling",

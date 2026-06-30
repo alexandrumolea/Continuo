@@ -346,23 +346,17 @@ struct GoalDetailView: View {
                         .foregroundColor(ContinuoTheme.charcoal)
                 }
 
-                ZStack(alignment: .topLeading) {
-                    if successDraft.isEmpty {
-                        Text("Describe what success looks like for this goal…")
-                            .font(ContinuoTheme.rounded(13))
-                            .foregroundColor(ContinuoTheme.textLight)
-                            .padding(.top, 8)
-                            .padding(.leading, 4)
-                            .allowsHitTesting(false)
-                    }
-                    TextEditor(text: $successDraft)
-                        .font(ContinuoTheme.rounded(13))
-                        .foregroundColor(ContinuoTheme.charcoal)
-                        .frame(minHeight: 80)
-                        .focused($successFocused)
-                        .scrollContentBackground(.hidden)
-                        .onChange(of: successDraft) { _, _ in scheduleSuccessSave() }
-                }
+                TextField(
+                    "Describe what success looks like for this goal…",
+                    text: $successDraft,
+                    axis: .vertical
+                )
+                .font(ContinuoTheme.rounded(13))
+                .foregroundColor(ContinuoTheme.charcoal)
+                .lineLimit(1...)
+                .frame(minHeight: 64, alignment: .topLeading)
+                .focused($successFocused)
+                .onChange(of: successDraft) { _, _ in scheduleSuccessSave() }
 
                 if successFocused {
                     HStack {
